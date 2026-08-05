@@ -1,6 +1,12 @@
 package booking
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+// ErrCapacityExceeded est retourné quand une réservation dépasserait la capacité du créneau.
+var ErrCapacityExceeded = errors.New("capacité du créneau dépassée")
 
 // Slot est un créneau d'activité réservable.
 type Slot struct {
@@ -22,7 +28,11 @@ func IsAvailable(s Slot) bool {
 }
 
 // Book réserve n places sur un créneau et retourne le créneau mis à jour.
-func Book(s Slot, n int) Slot {
+// Retourne ErrCapacityExceeded si n dépasse les places disponibles.
+func Book(s Slot, n int) (Slot, error) {
+	if n > Remaining(s) {
+		return s, ErrCapacityExceeded
+	}
 	s.Booked += n
-	return s
+	return s, nil
 }
