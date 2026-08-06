@@ -20,7 +20,7 @@ Le dépôt contient un seul domaine métier **prouvé** : **Réservation & dispo
 |---|---|---|
 | `Remaining(Slot) int` | Calcule le nombre de places libres (Capacité − Réservées) | Peut retourner une valeur négative si `Booked > Capacity` — pas de garde |
 | `IsAvailable(Slot) bool` | Prédicat : au moins une place reste-t-elle ? | Aucun — dérive correctement de `Remaining` |
-| `Book(Slot, n int) Slot` | Enregistre n places réservées, retourne le créneau mis à jour | **Critique** : pas de vérification de disponibilité ni de validation de `n` ; sur-réservation silencieuse possible |
+| `Book(Slot, n int) (Slot, error)` | Enregistre n places réservées, retourne le créneau mis à jour | Valide `n > 0` (`ErrInvalidBookingCount`) et `n ≤ Remaining(s)` (`ErrCapacityExceeded`) ; sur-réservation silencieuse impossible |
 
 **Domaines absents du code** : Catalogue d'activités, comptes clients, paiement, planning/agenda, notifications, annulation. Ces fonctionnalités, logiquement attendues pour un système de réservation complet, ne sont représentées nulle part — ce qui est cohérent avec la nature de "pilote de test" mais doit être explicite pour planifier l'évolution.
 
@@ -30,24 +30,24 @@ Le dépôt contient un seul domaine métier **prouvé** : **Réservation & dispo
 
 ## Risques prioritaires
 
-### Défaut fonctionnel — `Book` sans garde de capacité
-`Book` n'effectue aucune vérification avant d'incrémenter les places réservées. Appeler `Book(Slot{Capacity:10, Booked:10}, 1)` retourne `Slot{Booked:11}` sans erreur — créant un état où `Booked > Capacity`. C'est la violation la plus grave de l'invariant d'un système de réservation. **Impact** : dès qu'une couche appelante expose ce package via HTTP ou une API sans ajouter sa propre validation, la sur-réservation devient silencieuse et non détectable.
+### ~~Défaut fonctionnel — `Book` sans garde de capacité~~ — RÉSOLU
+`Book` valide désormais ses pré-conditions : `n > 0` (sinon `ErrInvalidBookingCount`) et `n ≤ Remaining(s)` (sinon `ErrCapacityExceeded`). `Book(Slot{Capacity:10, Booked:10}, 1)` retourne maintenant `(Slot{}, ErrCapacityExceeded)` — l'état invalide `Booked > Capacity` ne peut plus être produit par `Book`.
 
 ### Absence de persistance
 Les valeurs retournées par `Book` sont des valeurs Go en mémoire. Elles disparaissent à la fin du scope appelant si elles ne sont pas explicitement conservées. Le README mentionne un déploiement vers "staging" sans préciser où les réservations sont stockées — ce mécanisme est `INCONNU`.
 
-### Incomplétude de la suite de tests
-Trois tests couvrent uniquement le chemin nominal : `Remaining` avec `Capacity=10, Booked=4` retourne `6` ; `IsAvailable` retourne `true` ; `Book` incrémente `Booked` de 2. Aucun test ne couvre les cas critiques : sur-réservation, `n` négatif ou nul, créneau exactement plein, valeurs invalides (`Capacity ≤ 0`). Un contributeur qui s'appuie sur "3 tests passants" comme signal de santé prend un risque.
+### Suite de tests — cas nominaux et critiques couverts
+Sept tests couvrent les chemins nominaux et les cas limites de `Book` : `n=0`, `n<0`, sur-réservation, créneau exactement plein. Restent non couverts : `Remaining` quand `Booked > Capacity`, `Capacity ≤ 0`, immuabilité du `Slot` source.
 
 ## Priorités prochaines
 
 1. **Clarifier la cible d'évolution** : le projet reste-t-il une bibliothèque importable, ou doit-il évoluer en service HTTP autonome ? Cette décision structure toute l'architecture future (transport, persistance, interfaces, gestion d'erreurs).
-2. **Ajouter la garde de capacité à `Book`** : retourner une erreur si `n ≤ 0` ou si `n > Remaining(s)`, plutôt que d'accepter silencieusement tout paramètre.
+2. ~~**Ajouter la garde de capacité à `Book`**~~ — **FAIT** (`booking.go:36-45`).
 3. **Concevoir et implémenter la couche de persistance** avant d'ajouter d'autres fonctionnalités — sans elle, aucune réservation n'est durable.
-4. **Étoffer la suite de tests** pour couvrir les cas limites et la robustesse : sur-réservation, `n` négatif, créneau vide, créneau plein, modèle de données invalides.
+4. **Compléter la suite de tests** : `Remaining` quand `Booked > Capacity`, `Capacity ≤ 0`, immuabilité du `Slot` source.
 
 ## Questions non tranchées
 
 - Le terme "SHIFT/Paperclip" a-t-il une signification métier précise ou une affectation interne ? Non déductible du code.
 - "Staging" dans le README est-il un environnement réel tourne-t-il ce code, ou une note de processus ? Pas d'artefact de déploiement visible dans le dépôt.
-- `Book(s, -n)` pour annuler une réservation est-il un cas d'usage volontaire ou une omission du pilote ? Aucun test ni commentaire ne l'éclaire.
+- `Book` rejette désormais `n ≤ 0` — une fonction `Cancel` dédiée sera-t-elle ajoutée pour l'annulation ?

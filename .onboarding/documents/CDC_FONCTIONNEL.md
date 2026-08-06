@@ -52,22 +52,22 @@ Le code implémente deux workflows connexes. Ces workflows sont purement techniq
 
 **Étapes**
 1. L'appelant détient ou construit un `Slot` et choisit `n` (nombre de places à réserver).
-2. L'appelant appelle `Book(Slot, n int) Slot`.
-3. `Book` incrémente `s.Booked` de `n` sans vérifier la disponibilité (ligne `s.Booked += n`, `internal/booking/booking.go:26`).
-4. `Book` retourne un nouveau `Slot` avec `Booked` augmenté.
+2. L'appelant appelle `Book(Slot, n int) (Slot, error)`.
+3. `Book` vérifie que `n > 0` (sinon retourne `ErrInvalidBookingCount`) et que `n ≤ Remaining(s)` (sinon retourne `ErrCapacityExceeded`), puis incrémente `s.Booked` de `n` (`internal/booking/booking.go:36-45`).
+4. `Book` retourne un nouveau `Slot` avec `Booked` augmenté, et `nil` comme erreur.
 5. L'appelant est responsable de la persistance du `Slot` retourné — sinon la réservation est perdue.
 
 **Règles métier**
-- **`Book` n'effectue aucune vérification** : pas de contrôle de disponibilité, pas de validation de `n`. Un créneau complet ou déjà sur-réservé peut accepter davantage de réservations (`internal/booking/booking.go:25-28`).
+- **`Book` valide ses pré-conditions** : `n > 0` (sinon `ErrInvalidBookingCount`) et `n ≤ Remaining(s)` (sinon `ErrCapacityExceeded`). Un créneau complet ou une valeur `n` invalide provoque un retour d'erreur explicite (`internal/booking/booking.go:36-45`).
 - **Non-mutatif** : `Book` reçoit `Slot` par valeur, retourne une nouvelle valeur — pas de modification en place. L'appelant doit utiliser la valeur de retour.
-- **`n` peut être négatif (annulation implicite)** : `Book(s, -2)` décrémente `Booked` de 2. Ce comportement n'est pas documenté ni testé (`internal/booking/booking_test.go` teste uniquement `n=2`).
+- **`n` négatif ou nul est rejeté** : `Book(s, -2)` et `Book(s, 0)` retournent `ErrInvalidBookingCount`. L'annulation nécessitera une fonction dédiée.
 
 **Données en entrée** : `Slot` + `int n` (nombre de places à réserver).
-**Données en sortie** : `Slot` modifié (idem, mais `Booked` incrémenté de `n`).
+**Données en sortie** : `(Slot, error)` — `Slot` modifié (`Booked` incrémenté de `n`) si succès, `error` non nulle (`ErrInvalidBookingCount` ou `ErrCapacityExceeded`) sinon.
 
-**Risques — CRITIQUES**
-- **Sur-réservation silencieuse** : `Book(Slot{Capacity:10, Booked:10}, 1)` retourne `Slot{Booked:11}` sans erreur. Aucune garde ne l'interdit. C'est la violation la plus grave : un créneau peut être sur-réservé indéfiniment.
-- **`n` négatif accepté** : `Book(s, -3)` décrémente `Booked`, simulant une annulation. Cela n'est ni documenté ni testé — comportement implicite et non formalisé.
+**Risques**
+- ~~**Sur-réservation silencieuse**~~ — **RÉSOLU** : `Book(Slot{Capacity:10, Booked:10}, 1)` retourne désormais `(Slot{}, ErrCapacityExceeded)`.
+- ~~**`n` négatif accepté silencieusement**~~ — **RÉSOLU** : `Book(s, -3)` retourne `ErrInvalidBookingCount`.
 - **Aucune persistance** : la valeur retournée est une valeur Go en mémoire. Si l'appelant oublie de la sauvegarder, la réservation disparaît.
 - **Pas d'atomicité** : le schéma « vérifier la disponibilité → appeler `Book` » n'est pas atomique. Entre les deux appels, un concurrent peut modifier le `Slot`.
 
@@ -77,9 +77,9 @@ Le code implémente deux workflows connexes. Ces workflows sont purement techniq
 |---|---|---|
 | Places libres = Capacité − Réservées | `Remaining` ligne 16 | ✓ Implémentée correctement |
 | Un créneau est disponible ssi places libres > 0 | `IsAvailable` ligne 21 | ✓ Implémentée correctement |
-| On ne peut réserver que si disponible | `Book` lignes 25-28 | ✗ **Absente** — pas de vérification avant incrément |
-| Réservation enregistrée → places réservées augmentent | `Book` ligne 26 | ✓ Implémentée (mais sans garde) |
-| Annulation possible | Implicitement via `Book(s, -n)` | ⚠ **Implicite** — non documentée, non testée, non formalisée |
+| On ne peut réserver que si disponible | `Book` lignes 36-45 | ✓ Implémentée — `ErrCapacityExceeded` si `n > Remaining(s)` |
+| Réservation enregistrée → places réservées augmentent | `Book` ligne 43 | ✓ Implémentée avec garde |
+| Annulation possible | Aucun mécanisme — `Book(s, -n)` est rejeté (`ErrInvalidBookingCount`) | ✗ **Absente** — fonction `Cancel` à créer |
 
 ## Modèle de données
 
@@ -99,7 +99,7 @@ Slot:
 - `Booked ≥ 0` — aucune réservation ne peut être négative.
 - `Booked ≤ Capacity` — places réservées ≤ capacité totale.
 
-**Invariants actuellement violables** : tous les trois. `Book` permet `Booked > Capacity` ; aucune validation à la construction n'empêche `Capacity ≤ 0` ou `Booked < 0`.
+**Invariants actuellement violables** : deux sur trois. `Book` garantit `Booked ≤ Capacity` après appel (via `ErrCapacityExceeded`). En revanche, aucune validation à la construction n'empêche `Capacity ≤ 0` ou `Booked < 0` dans un `Slot` initial.
 
 **Données absentes** :
 - Durée ou heure de fin du créneau — `Start` seul ne suffit pas à décrire un créneau complet.
@@ -114,8 +114,8 @@ Slot:
 |---|---|---|
 | Catalogue d'activités | ✗ Absent | Pas d'entité Activity en base, pas de liste énumérée |
 | Créneaux planifiés | ⚠ Partiel | `Slot` existe mais sans persistance, pas de requête par date/activité |
-| Réservation (core) | ⚠ Partiel | `Book` existe mais sans garde de capacité |
-| Annulation | ✗ Absent | `Book(s, -n)` est implicite, non formalisé |
+| Réservation (core) | ✓ Implémentée | `Book` valide capacité et n, retourne `(Slot, error)` |
+| Annulation | ✗ Absent | `Book(s, -n)` est rejeté ; une fonction `Cancel` reste à créer |
 | Paiement | ✗ Absent | Aucune entité, aucun flux |
 | Authentification du réservant | ✗ Absent | Aucun concept de client/utilisateur |
 | Notifications | ✗ Absent | Aucun système de message |
@@ -125,8 +125,7 @@ Slot:
 
 ## Questions non résolues
 
-- **Validation de la garde de capacité** : est-elle volontairement absente (déléguée à l'appelant) ou une omission du pilote ? Les deux lectures du code sont possibles. À confirmer auprès du board.
-- **Annulation** : `Book(s, -n)` est-il le mécanisme prévu, ou une fonction `Cancel` dédiée sera-t-elle ajoutée ?
+- **Annulation** : `Book` rejette désormais `n ≤ 0` — une fonction `Cancel(s Slot, n int) (Slot, error)` dédiée sera-t-elle ajoutée ?
 - **Persistance** : où les réservations sont-elles stockées ? Base de données, fichier, in-memory cache ? Non visible ici.
 - **Clients** : y aura-t-il une entité `Client` ou `User` pour lier une réservation à un réservant ? Aujourd'hui aucune notion.
 - **Concurrence** : `IsAvailable → Book` doit-il être atomique ? Aucune protection actuellement.
