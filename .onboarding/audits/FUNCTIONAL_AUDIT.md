@@ -28,7 +28,7 @@ Sur les 3 fonctions implémentées : les 3 sont correctes. `Book` valide désorm
 
 ## Forces
 
-- `VÉRIFIÉ_CODE` : `Remaining` et `IsAvailable` implémentent correctement leurs règles métier respectives (`booking.go:15-22`).
+- `VÉRIFIÉ_CODE` : `Remaining` et `IsAvailable` implémentent correctement leurs règles métier respectives (`booking.go:24-31`).
 - `VÉRIFIÉ_CODE` : `Book` implémente correctement la mécanique d'incrément avec validation des pré-conditions (`n > 0`, `n ≤ Remaining(s)`).
 - `VÉRIFIÉ_CODE` : Les noms de fonctions sont sémantiquement cohérents avec le domaine métier (`Remaining`, `IsAvailable`, `Book` — anglais métier clair).
 

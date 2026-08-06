@@ -50,7 +50,7 @@ La complexité cyclomatique est 3 (deux branches de garde explicites). Un senior
 ## Forces
 
 - `VÉRIFIÉ_CODE` : `Book` valide ses pré-conditions (`n > 0`, `n ≤ Remaining(s)`) et retourne `(Slot, error)` — aucun état invalide ne peut être produit par `Book` (`booking.go:36-45`).
-- `VÉRIFIÉ_CODE` : Aucun couplage entre fonctions sauf `IsAvailable → Remaining` (`booking.go:29-31`) et `Book → Remaining` (`booking.go:40`), couplages intentionnels et cohérents.
+- `VÉRIFIÉ_CODE` : Aucun couplage entre fonctions sauf `IsAvailable → Remaining` (`booking.go:30`) et `Book → Remaining` (`booking.go:40`), couplages intentionnels et cohérents.
 - `VÉRIFIÉ_CODE` : Zéro état global — aucune variable de package hors sentinelles d'erreur, aucun `init()`. Impossible de "polluer" l'état entre deux appels.
 - `VÉRIFIÉ_CODE` : 7 tests couvrant les cas nominaux et critiques (`booking_test.go:12-63`).
 

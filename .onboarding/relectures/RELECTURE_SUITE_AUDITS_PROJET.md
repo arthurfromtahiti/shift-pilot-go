@@ -40,7 +40,7 @@ Correction attendue : reformuler en « go.mod ne contient pas de bloc `require` 
 - `Remaining` retourne `s.Capacity - s.Booked` à `booking.go:16` — VÉRIFIÉ_CODE (ligne 16 confirmée).
 - `IsAvailable` retourne `Remaining(s) > 0` à `booking.go:21` — VÉRIFIÉ_CODE (ligne 21 confirmée).
 - `Book` incrémente `s.Booked += n` sans garde à `booking.go:26` — VÉRIFIÉ_CODE (ligne 26 confirmée).
-- Struct `Slot` à `booking.go:6-12`, cinq champs exacts — VÉRIFIÉ_CODE (confirmé).
+- Struct `Slot` à `booking.go:15-21`, cinq champs exacts — VÉRIFIÉ_CODE (confirmé).
 - `go.mod` déclare `github.com/arthurfromtahiti/shift-pilot-go`, Go 1.21, sans bloc `require` — fait correct malgré la citation de ligne incorrecte.
 - `booking_test.go:9` : `Start: time.Now()` dans `sample()` — VÉRIFIÉ_CODE (confirmé).
 - Tests : TestRemaining/TestIsAvailable/TestBook couvrent uniquement le chemin nominal — VÉRIFIÉ_CODE (confirmé).

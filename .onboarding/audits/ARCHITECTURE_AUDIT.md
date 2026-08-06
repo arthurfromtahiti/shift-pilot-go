@@ -28,12 +28,12 @@ Le risque architectural immédiat n'est pas dans ce qui est là — c'est dans c
 
 - `VÉRIFIÉ_CODE` : La convention `internal/` protège le package de toute importation accidentelle par un module externe (`internal/booking/booking.go:1`).
 - `VÉRIFIÉ_CODE` : Zéro dépendance externe (absence de bloc `require` dans `go.mod`) — pas de supply-chain risk, pas de gestion de versions transitives, build reproductible.
-- `VÉRIFIÉ_CODE` : Les trois fonctions sont pures (pas d'état global, pas de pointeur partagé) : elles sont composables, prévisibles, et testables sans mock ni setup (`booking.go:15-28`).
+- `VÉRIFIÉ_CODE` : Les trois fonctions sont pures (pas d'état global, pas de pointeur partagé) : elles sont composables, prévisibles, et testables sans mock ni setup (`booking.go:24-31`).
 
 ## Dettes techniques
 
 - ~~`VÉRIFIÉ_CODE` : Absence de type d'erreur~~ — **RÉSOLU** : `Book` retourne `(Slot, error)` avec `ErrInvalidBookingCount` si `n ≤ 0` et `ErrCapacityExceeded` si `n > Remaining(s)` (`booking.go:36-45`). Sur-réservation et valeurs de `n` invalides signalent une erreur explicite.
-- `VÉRIFIÉ_CODE` : Absence d'interface — l'appelant de `booking` est couplé aux types concrets. Si le comportement de `Book` ou `Remaining` évolue, tous les appelants doivent être mis à jour sans filet (`booking.go:1-28`).
+- `VÉRIFIÉ_CODE` : Absence d'interface — l'appelant de `booking` est couplé aux types concrets. Si le comportement de `Book` ou `Remaining` évolue, tous les appelants doivent être mis à jour sans filet (`booking.go:1-45`).
 - `HYPOTHÈSE` : Absence de configuration de build et de CI/CD — si "staging" est un vrai environnement, le chemin de build → déploiement est soit documenté ailleurs, soit informel. Dans les deux cas, il n'est pas versionné avec le code.
 
 ## Zones critiques

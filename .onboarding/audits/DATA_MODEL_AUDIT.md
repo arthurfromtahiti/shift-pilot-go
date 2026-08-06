@@ -12,7 +12,7 @@ Un seul type, cinq champs, zéro contrainte. Le modèle décrit correctement un 
 
 ## Constats détaillés
 
-**`VÉRIFIÉ_CODE` — Type unique `Slot`, cinq champs.** Le type `Slot` est déclaré en `internal/booking/booking.go:6-12` :
+**`VÉRIFIÉ_CODE` — Type unique `Slot`, cinq champs.** Le type `Slot` est déclaré en `internal/booking/booking.go:15-21` :
 
 ```go
 type Slot struct {
@@ -30,7 +30,7 @@ type Slot struct {
 - `Capacity int` : capacité totale. Aucune contrainte de positivité — un `Slot{Capacity: -5}` est syntaxiquement valide.
 - `Booked int` : places actuellement réservées. Peut dépasser `Capacity` (voir `Book`), peut être négatif (`Book(s, -n)` implicite). Aucune contrainte d'intégrité.
 
-**`VÉRIFIÉ_CODE` — Aucune invariant enforced.** Aucun constructeur validant, aucune méthode `Validate()`, aucun tag de validation (`validate:`, `json:`, etc.) n'est défini (`booking.go:6-12`). Un `Slot{Capacity: 0, Booked: 100}` ou `Slot{ID: 0}` est un état valide du point de vue du compilateur Go.
+**`VÉRIFIÉ_CODE` — Aucune invariant enforced.** Aucun constructeur validant, aucune méthode `Validate()`, aucun tag de validation (`validate:`, `json:`, etc.) n'est défini (`booking.go:15-21`). Un `Slot{Capacity: 0, Booked: 100}` ou `Slot{ID: 0}` est un état valide du point de vue du compilateur Go.
 
 **`VÉRIFIÉ_CODE` — Aucune persistance, aucune migration.** Le dépôt ne contient ni fichier SQL, ni ORM (`gorm`, `sqlx`, `ent`, etc.), ni migration (`goose`, `atlas`, `migrate`), ni schéma JSON ou Protobuf. Le `Slot` n'existe qu'en mémoire pendant la durée de vie d'un appel de fonction. La valeur retournée par `Book` est perdue si l'appelant ne la conserve pas explicitement.
 
@@ -40,20 +40,20 @@ type Slot struct {
 
 ## Forces
 
-- `VÉRIFIÉ_CODE` : Modèle minimal et lisible — toute la structure tient en 7 lignes, sans ambiguïté (`booking.go:6-12`).
+- `VÉRIFIÉ_CODE` : Modèle minimal et lisible — toute la structure tient en 7 lignes, sans ambiguïté (`booking.go:15-21`).
 - `VÉRIFIÉ_CODE` : Utilisation de `time.Time` pour `Start` (type fort de la bibliothèque standard) plutôt qu'un `string` ou un `int` timestamp — correct pour la manipulation de dates.
 - `VÉRIFIÉ_CODE` : Aucune dépendance externe dans le modèle — pas d'ORM, pas de bibliothèque de validation tierce. Facilite un remplacement ou une extension ultérieure.
 
 ## Dettes techniques
 
 - ~~`VÉRIFIÉ_CODE` : `Booked` peut légalement dépasser `Capacity`~~ — **RÉSOLU** : `Book` valide `n ≤ Remaining(s)` avant d'incrémenter `Booked`, garantissant `Booked ≤ Capacity` (`booking.go:40-41`). L'invariant est enforced par `Book`, bien qu'un `Slot` construit manuellement avec `Booked > Capacity` reste syntaxiquement valide.
-- `VÉRIFIÉ_CODE` : `Capacity` peut être zéro ou négatif — aucune garde à la construction (`booking.go:6-12`).
+- `VÉRIFIÉ_CODE` : `Capacity` peut être zéro ou négatif — aucune garde à la construction (`booking.go:15-21`).
 - `VÉRIFIÉ_CODE` : `ID int` est insuffisant pour un système distribué ou avec persistance — collisions possibles, pas de génération automatique, pas d'opacité.
 - `VÉRIFIÉ_CODE` : Absence de champ `End` ou `Duration` — impossible de calculer la durée d'un créneau, de détecter les chevauchements, ou d'afficher un créneau complet.
 
 ## Zones critiques
 
-- `VÉRIFIÉ_CODE` : `internal/booking/booking.go:6-12` (`Slot`) — toute évolution du modèle passe par ce struct. Sa modification impacte toutes les fonctions du package et tous leurs appelants.
+- `VÉRIFIÉ_CODE` : `internal/booking/booking.go:15-21` (`Slot`) — toute évolution du modèle passe par ce struct. Sa modification impacte toutes les fonctions du package et tous leurs appelants.
 
 ## Risques
 
@@ -64,7 +64,7 @@ type Slot struct {
 ## Recommandations priorisées
 
 1. **Introduire un constructeur validant** `func NewSlot(id int, activity string, start time.Time, capacity int) (Slot, error)` qui rejette `capacity <= 0` et `activity == ""` — `internal/booking/booking.go`.
-2. **Ajouter un champ `End time.Time` ou `Duration time.Duration`** pour rendre un créneau exploitable (affichage, détection de chevauchement) — `internal/booking/booking.go:6-12`.
+2. **Ajouter un champ `End time.Time` ou `Duration time.Duration`** pour rendre un créneau exploitable (affichage, détection de chevauchement) — `internal/booking/booking.go:15-21`.
 3. **Séparer l'entité `Booking` (une réservation) de l'entité `Slot` (un créneau)** dès que la persistance est introduite — un `Slot` représente l'offre, une `Booking` représente l'acte de réservation d'un réservant particulier.
 4. **Remplacer `ID int` par `ID string` (UUID)** avant d'introduire la persistance pour éviter les collisions et permettre la génération côté client.
 
