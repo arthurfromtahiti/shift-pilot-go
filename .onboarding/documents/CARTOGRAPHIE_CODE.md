@@ -33,7 +33,7 @@ shift-pilot-go/
   - Type `Slot` : créneau d'activité (5 champs).
   - Fonction `Remaining(Slot) int` : places restantes.
   - Fonction `IsAvailable(Slot) bool` : disponibilité.
-  - Fonction `Book(Slot, int) Slot` : enregistrement de réservation.
+  - Fonction `Book(s Slot, n int) (Slot, error)` : enregistrement de réservation avec validation des pré-conditions.
 
 - **`internal/booking/booking_test.go`** (29 lignes, `VÉRIFIÉ_CODE`, exécution `INCONNU`)
   - Fonction `sample() Slot` : fixture de test.
@@ -48,7 +48,7 @@ shift-pilot-go/
 | `booking.go` | 6–12 | Type `Slot` | Entité unique ; cœur du modèle | Invariants non enforced (Booked > Capacity possible) |
 | `booking.go` | 15–17 | `Remaining` | Calcule places libres (Capacity − Booked) | Peut retourner négatif ; pas de garde |
 | `booking.go` | 20–22 | `IsAvailable` | Prédicat disponibilité (Remaining > 0) | Correct dans sa forme, mais passif sur état invalide |
-| `booking.go` | 25–28 | **`Book`** | **Seule fonction qui mutate l'état** | **CRITIQUE** : pas de vérification de capacité, accepte tout `n` |
+| `booking.go` | 36–45 | **`Book`** | **Seule fonction qui mutate l'état** | Valide `n > 0` (`ErrInvalidBookingCount`) et `n ≤ Remaining(s)` (`ErrCapacityExceeded`) avant incrément |
 | `booking_test.go` | 8–10 | Fixture `sample()` | Bloc de test partagé | `time.Now()` rend non-déterministe si `Start` devient fonctionnel |
 | `booking_test.go` | 12–29 | Trois tests | Couverture nominale | Aucun cas limite ; sur-réservation non testée |
 
@@ -62,7 +62,7 @@ Appelant externe (code client)
 Fonctions publiques:
   ├─ Remaining(Slot) → int
   ├─ IsAvailable(Slot) → bool
-  └─ Book(Slot, n) → Slot
+  └─ Book(Slot, n) → (Slot, error)
 ```
 
 Aucun point d'entrée supplémentaire : pas de serveur HTTP, pas de CLI, pas de fonction `main`, pas de package `cmd`.
@@ -85,7 +85,7 @@ Aucun point d'entrée supplémentaire : pas de serveur HTTP, pas de CLI, pas de 
 - **Fonctions pures** : pas d'état global, pas de pointeur partagé, pas de mutation destructive.
 - **Typographie simple** : un seul type (`Slot`), cinq champs, pas de générique, pas de constructeur.
 - **Pas de configuration** : aucun fichier `.env`, aucun YAML, aucun paramètre de build.
-- **Pas d'erreurs** : aucune fonction ne retourne `error` ; états invalides retournés comme valeurs nominales.
+- **Gestion d'erreurs minimale** : `Book` retourne `(Slot, error)` — `ErrInvalidBookingCount` si `n ≤ 0`, `ErrCapacityExceeded` si `n > Remaining(s)`. `Remaining` et `IsAvailable` restent des fonctions pures sans erreur.
 
 ### Forces
 
@@ -96,8 +96,8 @@ Aucun point d'entrée supplémentaire : pas de serveur HTTP, pas de CLI, pas de 
 ### Dettes immédiates
 
 1. **Pas d'interface** — tout appelant est couplé aux types concrets. Si `Remaining` ou `Book` change de signature, tous les appelants doivent être mis à jour.
-2. **Pas de type d'erreur** — impossible de distinguer un résultat valide d'un appel sémantiquement invalide.
-3. **Absence de validation de garde** — `Book` n'enforces aucun invariant.
+2. ~~**Pas de type d'erreur**~~ — `Book` retourne désormais `(Slot, error)` avec deux sentinelles : `ErrInvalidBookingCount` et `ErrCapacityExceeded`.
+3. ~~**Absence de validation de garde**~~ — `Book` valide `n > 0` et `n ≤ Remaining(s)` avant tout incrément.
 4. **Pas de configuration de build/CI** — aucun workflow GitHub Actions, aucun Makefile, aucune automatisation visible.
 
 ## Tests
@@ -110,10 +110,10 @@ Aucun point d'entrée supplémentaire : pas de serveur HTTP, pas de CLI, pas de 
 - Assertions simples : chaque test = 1 appel + 1 vérification.
 
 **Cas non testés** (tous critiques pour la robustesse) :
-- `Book(s, 0)` — no-op silencieux.
-- `Book(s, n)` où `n > Remaining(s)` — sur-réservation.
-- `Book(s, -n)` — annulation implicite.
-- `Remaining(s)` où `Booked > Capacity` — valeur négative.
+- ~~`Book(s, 0)` — no-op silencieux~~ — désormais rejeté par `ErrInvalidBookingCount` (`TestBookZero`).
+- ~~`Book(s, n)` où `n > Remaining(s)` — sur-réservation~~ — désormais rejeté par `ErrCapacityExceeded` (`TestBookCapacityExceeded`, `TestBookExactCapacity`).
+- ~~`Book(s, -n)` — annulation implicite~~ — désormais rejeté par `ErrInvalidBookingCount` (`TestBookNegative`).
+- `Remaining(s)` où `Booked > Capacity` — valeur négative (état non atteignable via `Book`, mais possible via construction brute).
 - Immuabilité de `Slot` après `Book` — non testée explicitement.
 
 **Absence de CI** : aucun workflow GitHub Actions, aucune exécution automatique à chaque push.
@@ -124,7 +124,7 @@ Aucun point d'entrée supplémentaire : pas de serveur HTTP, pas de CLI, pas de 
 |---|---|---|
 | Couche HTTP/transport | Absent | Impossible d'exposer en tant que service REST |
 | Couche de persistance | Absent | Toute réservation disparaît en fin de scope |
-| Gestion d'erreurs | Absent | Impossible de signaler une sur-réservation ou un appel invalide |
+| Gestion d'erreurs | Partiel — `Book` retourne `(Slot, error)` ; `Remaining`/`IsAvailable` restent sans erreur | Impossible de signaler un `Slot` invalide à la construction (`Capacity ≤ 0`, `Booked < 0`) |
 | Interfaces/contrats | Absent | Tout appelant est couplé à `Slot` et aux signatures actuelles |
 | CI/CD | Absent | Tests ne s'exécutent qu'à la main ; pas d'automatisation |
 | Configuration | Absent | Aucun paramètre externalizable (DB, logs, feature flags) |
@@ -134,6 +134,6 @@ Aucun point d'entrée supplémentaire : pas de serveur HTTP, pas de CLI, pas de 
 
 1. **Avant d'ajouter un serveur HTTP** : introduire une interface `type BookingService interface { ... }` pour découpler transport et logique métier.
 2. **Avant d'ajouter une base de données** : concevoir le schéma d'intégrité (constraints CHECK, migrations) et les propriétés de transactions (atomicité de lecture-puis-écriture).
-3. **Avant d'exposer publiquement** : implémenter la validation des invariants en amont et la gestion d'erreurs — `Book` doit retourner `(Slot, error)`, pas juste `Slot`.
+3. **Avant d'exposer publiquement** : valider les invariants de `Slot` à la construction (`Capacity > 0`, `Booked ≥ 0`) — `Book` retourne déjà `(Slot, error)` avec deux sentinelles.
 4. **En parallèle** : mettre en place un workflow CI qui exécute `go test ./... -race` à chaque push et PR.
 5. **Pour la testabilité** : remplacer `time.Now()` par une heure fixe dans les fixtures, utiliser des tests table-driven pour couvrir les cas limites.

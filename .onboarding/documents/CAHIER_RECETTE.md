@@ -100,9 +100,9 @@ Statut :: NON COUVERT — détecte état invalide, mais `IsAvailable` retourne c
 
 ---
 
-### 3. Fonction `Book(Slot, int) Slot`
+### 3. Fonction `Book(s Slot, n int) (Slot, error)`
 
-Enregistre une réservation. Retourne le `Slot` mis à jour (Booked augmenté de n).
+Enregistre une réservation. Retourne `(Slot, nil)` si succès (Booked augmenté de n), ou `(Slot{}, error)` si `n ≤ 0` (`ErrInvalidBookingCount`) ou `n > Remaining(s)` (`ErrCapacityExceeded`).
 
 #### TC-3.1 — Chemin nominal : réserver n=2 places
 ```

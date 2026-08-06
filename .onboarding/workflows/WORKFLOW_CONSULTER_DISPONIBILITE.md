@@ -6,7 +6,7 @@
 - **Visibilité** : `technical` — aucun point d'entrée utilisateur ou HTTP ; exposé uniquement comme API de package Go
 - **Acteur principal** : code appelant (autre package Go)
 - **Acteurs** : appelant Go (seul acteur connu — pas de couche HTTP, pas d'utilisateur humain)
-- **Criticité** : Haute — condition de garde nécessaire avant toute réservation ; toute erreur produit des sur-réservations silencieuses
+- **Criticité** : Haute — condition de garde pour guider l'appelant avant toute réservation ; `Book` valide elle-même la disponibilité, mais `IsAvailable` reste utile pour un retour utilisateur précoce
 - **Confiance** : medium — les trois fichiers du package ont été lus intégralement ; les tests ont été lus (`VÉRIFIÉ_CODE`) mais **non exécutés** (toolchain Go absente, statut d'exécution `INCONNU`)
 - **Justification** : Les deux fonctions (`Remaining`, `IsAvailable`) sont entièrement visibles dans `internal/booking/booking.go`. Le type `technical_flow` est retenu car il n'existe aucun point d'entrée HTTP, aucune route, aucune commande CLI, et aucun utilisateur humain qui déclenche directement ces fonctions dans le code actuel — elles sont une API de bibliothèque Go.
 
@@ -36,7 +36,7 @@ Ces deux fonctions sont les seuls points d'entrée pour consulter la disponibili
 
 - **Places restantes = Capacité − Réservées** : `Remaining(s) = s.Capacity - s.Booked` (`internal/booking/booking.go:16`). La règle est symétrique : un créneau vide (`Booked = 0`) retourne `Capacity` ; un créneau plein retourne `0`.
 - **Disponible si et seulement si il reste au moins une place** : `IsAvailable(s) = Remaining(s) > 0` (`internal/booking/booking.go:21`). Un créneau est indisponible dès que `Remaining ≤ 0`.
-- **Résultat potentiellement négatif non bloqué** : si `Booked > Capacity` (sur-réservation possible via `Book` — voir `WORKFLOW_RESERVER_PLACES.md`), `Remaining` retourne une valeur négative et `IsAvailable` retourne `false`. Aucune garde contre cette situation dans ces deux fonctions.
+- **Résultat potentiellement négatif non bloqué** : si `Booked > Capacity` (état non atteignable via `Book` depuis l'ajout des gardes — voir `WORKFLOW_RESERVER_PLACES.md` — mais possible via construction brute d'un `Slot`), `Remaining` retourne une valeur négative et `IsAvailable` retourne `false`. Aucune garde contre cette situation dans ces deux fonctions.
 
 ## Données
 
@@ -53,7 +53,7 @@ Aucune intégration externe explicite visible. Le package ne dépend que de la b
 
 - **`Remaining` peut retourner un entier négatif sans avertissement** : si l'appelant a sur-réservé via `Book` (voir `WORKFLOW_RESERVER_PLACES.md`), `Capacity - Booked < 0`. Aucune garde ni `panic` dans `Remaining` (`internal/booking/booking.go:16`). Impact : l'appelant reçoit un entier négatif sans signal d'erreur — comportement silencieusement incorrect si non anticipé.
 - **Aucune validation des champs `Capacity` ou `Booked`** : un `Slot` avec `Capacity = -1` ou `Booked = -5` est accepté sans erreur. Ces cas ne sont pas testés (`internal/booking/booking_test.go` ne couvre que le cas nominal `Capacity=10, Booked=4`). Impact : résultats arithmétiquement faux mais silencieux.
-- **Absence de concurrence** : les fonctions sont pures (pas de mutation, pas de pointeur), donc sûres en lecture concurrente au sens Go. En revanche, le schéma « lire `IsAvailable` puis appeler `Book` » n'est pas atomique : aucun mécanisme de verrouillage entre ces deux appels (`internal/booking/booking.go:20-28`). Impact futur : si un serveur ou goroutine concurrente est introduit, une race condition classique TOCTOU (vérification-puis-action) devient possible.
+- **Absence de concurrence** : les fonctions sont pures (pas de mutation, pas de pointeur), donc sûres en lecture concurrente au sens Go. En revanche, le schéma « lire `IsAvailable` puis appeler `Book` » n'est pas atomique : aucun mécanisme de verrouillage entre ces deux appels (`internal/booking/booking.go:20-22, 36-45`). Impact futur : si un serveur ou goroutine concurrente est introduit, une race condition classique TOCTOU (vérification-puis-action) devient possible. À noter : `Book` valide elle-même la disponibilité, ce qui réduit le risque mais ne l'élimine pas (un concurrent peut avoir modifié le `Slot` entre la lecture et l'appel).
 
 ## Questions ouvertes
 
