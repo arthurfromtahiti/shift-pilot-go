@@ -40,7 +40,7 @@ Le code implémente deux workflows connexes. Ces workflows sont purement techniq
 **Données en sortie** : `int` (nombre de places libres, potentiellement négatif si sur-réservation), `bool` (disponible oui/non).
 
 **Risques**
-- `Remaining` peut retourner un entier négatif si `Booked > Capacity` (état atteignable via `Book` — voir WF2). Aucune garde ne le prévient.
+- `Remaining` peut retourner un entier négatif si un `Slot` est construit directement avec `Booked > Capacity` (contournant `Book`). Aucune garde ne le prévient. Note : `Book` valide cette invariante (rejette via `ErrCapacityExceeded` si `n > Remaining(s)`), donc ce risque ne s'active que si le `Slot` est construit ou modifié sans passer par `Book`.
 - Les fonctions n'acceptent aucune validation d'entrée : un `Slot` avec `Capacity = -5` est traité sans erreur.
 - Pas de concurrence : si une goroutine concurrente modifie l'état du `Slot` entre un appel à `IsAvailable` et l'action que l'appelant en déduit, le résultat peut être obsolète.
 

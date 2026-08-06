@@ -12,9 +12,9 @@ Sur les 3 fonctions implémentées : les 3 sont correctes. `Book` valide désorm
 
 ## Constats détaillés
 
-**`VÉRIFIÉ_CODE` — `Remaining` : correct.** Retourne `s.Capacity - s.Booked` (`booking.go:16`). Correct pour un créneau dans un état valide. Si `Booked > Capacity` (état atteignable via `Book`), retourne un entier négatif sans erreur — comportement arithmétiquement correct mais sémantiquement trompeur.
+**`VÉRIFIÉ_CODE` — `Remaining` : correct.** Retourne `s.Capacity - s.Booked` (`booking.go:25`). Correct pour un créneau dans un état valide. Si un `Slot` est construit directement avec `Booked > Capacity` (contournant `Book`), retourne un entier négatif sans erreur — comportement arithmétiquement correct mais sémantiquement trompeur. Note : `Book` valide cette invariante (`ErrCapacityExceeded` si `n > Remaining(s)`), donc ce cas ne s'active que si le `Slot` est construit ou modifié sans passer par `Book`.
 
-**`VÉRIFIÉ_CODE` — `IsAvailable` : correct dans sa définition.** Retourne `Remaining(s) > 0` (`booking.go:21`). Conforme à la règle métier "disponible si au moins une place reste". Cas limite : `Booked == Capacity` → `Remaining == 0` → `IsAvailable == false`. Ce comportement est correct.
+**`VÉRIFIÉ_CODE` — `IsAvailable` : correct dans sa définition.** Retourne `Remaining(s) > 0` (`booking.go:30`). Conforme à la règle métier "disponible si au moins une place reste". Cas limite : `Booked == Capacity` → `Remaining == 0` → `IsAvailable == false`. Ce comportement est correct.
 
 **`VÉRIFIÉ_CODE` — `Book` : fonctionnellement complet dans son périmètre.** `Book(s Slot, n int) (Slot, error)` valide `n > 0` (retourne `ErrInvalidBookingCount` sinon) et `n ≤ Remaining(s)` (retourne `ErrCapacityExceeded` sinon) avant d'incrémenter `s.Booked` (`booking.go:36-45`). La règle métier élémentaire d'un système de réservation — "on ne peut réserver que ce qui est disponible" — est encodée. `Book(Slot{Capacity:10, Booked:10}, 1)` retourne désormais `(Slot{}, ErrCapacityExceeded)`.
 

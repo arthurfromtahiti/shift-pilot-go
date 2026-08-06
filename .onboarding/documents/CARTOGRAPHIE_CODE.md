@@ -46,7 +46,7 @@ shift-pilot-go/
 | Fichier | Ligne | Fonction | Rôle | Risque |
 |---|---|---|---|---|
 | `booking.go` | 15–21 | Type `Slot` | Entité unique ; cœur du modèle | Invariants non enforced (Booked > Capacity possible) |
-| `booking.go` | 24–26 | `Remaining` | Calcule places libres (Capacity − Booked) | Peut retourner négatif ; pas de garde |
+| `booking.go` | 24–26 | `Remaining` | Calcule places libres (Capacity − Booked) | Peut retourner négatif si Slot construit avec Booked > Capacity (contourne Book) ; pas de garde |
 | `booking.go` | 29–31 | `IsAvailable` | Prédicat disponibilité (Remaining > 0) | Correct dans sa forme, mais passif sur état invalide |
 | `booking.go` | 36–45 | **`Book`** | **Seule fonction qui mutate l'état** | Valide `n > 0` (`ErrInvalidBookingCount`) et `n ≤ Remaining(s)` (`ErrCapacityExceeded`) avant incrément |
 | `booking_test.go` | 8–10 | Fixture `sample()` | Bloc de test partagé | `time.Now()` rend non-déterministe si `Start` devient fonctionnel |
