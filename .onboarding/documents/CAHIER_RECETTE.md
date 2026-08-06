@@ -38,7 +38,7 @@ Statut :: NON COUVERT — cas limite critique
 
 #### TC-1.3 — Créneau sur-réservé (places restantes négatives)
 ```
-Slot := {Capacity:10, Booked:15}  # État atteignable via Book sans garde
+Slot := {Capacity:10, Booked:15}  # État impossible via Book (qui valide `n ≤ Remaining(s)`) — atteignable seulement en construction brute
 Appel := Remaining(Slot)
 Résultat attendu := -5  (10 - 15)
 Assertion := Remaining(Slot) == -5
@@ -131,34 +131,36 @@ Statut :: NON COUVERT — garantie par la sémantique Go (passage par valeur) ma
 Slot := {Capacity:10, Booked:4}
 n := 7  # Il n'y a que 6 places libres
 Appel := Book(Slot, 7)
-Résultat réel := {Capacity:10, Booked:11}  # Sur-réservé sans erreur
+Résultat réel := (Slot{}, ErrCapacityExceeded)  # Rejeté avec erreur
 Résultat attendu (métier) := ERREUR — "capacité dépassée, réservation refusée"
-Assertion :: N/A — divergence critique entre attendu métier et réel code
-Statut :: NON COUVERT — CAS LE PLUS CRITIQUE
-Risque :: VIOLATION D'INVARIANT — sur-réservation silencieuse, pas de guard
-Impact :: Tout appel sans vérification préalable d'`IsAvailable` produit un état invalide
+Assertion :: Book(Slot, 7) == (Slot{}, ErrCapacityExceeded)
+Statut :: COUVERT — test `TestBookCapacityExceeded` (ligne 34-39)
+Risque :: RÉSOLU — `Book` valide `n ≤ Remaining(s)` avant incrément
+Impact :: La sur-réservation est impossible via `Book`
 ```
 
-#### TC-3.4 — `n` négatif (annulation implicite)
+#### TC-3.4 — `n` négatif (rejeté)
 ```
 Slot := {Capacity:10, Booked:6}
 n := -2
 Appel := Book(Slot, -2)
-Résultat réel := {Capacity:10, Booked:4}  # Annulation, acceptée
-Résultat attendu (métier) :: INCERTAIN — mécanisme d'annulation non documenté
-Assertion :: N/A — comportement non formalisé
-Statut :: NON COUVERT — cas limite, comportement implicite
-Risque :: Annulation possible mais non documentée, aucune protection sur `Booked < 0`
+Résultat réel := (Slot{}, ErrInvalidBookingCount)  # Rejeté avec erreur
+Résultat attendu (métier) :: ERREUR — "n doit être positif"
+Assertion :: Book(Slot, -2) == (Slot{}, ErrInvalidBookingCount)
+Statut :: COUVERT — test `TestBookNegative` (ligne 58-63)
+Risque :: RÉSOLU — `Book` valide `n > 0` au premier appel
+Impact :: L'annulation doit utiliser une fonction dédiée (pas implémentée)
 ```
 
-#### TC-3.5 — `n` zéro (no-op)
+#### TC-3.5 — `n` zéro (rejeté)
 ```
 Slot := {Capacity:10, Booked:4}
 n := 0
 Appel := Book(Slot, 0)
-Résultat réel := {Capacity:10, Booked:4}  # Pas de changement
-Assertion :: Book(Slot, 0).Booked == 4
-Statut :: NON COUVERT — test documentaire (valide mais inutile métier)
+Résultat réel := (Slot{}, ErrInvalidBookingCount)  # Rejeté avec erreur
+Assertion :: Book(Slot, 0) == (Slot{}, ErrInvalidBookingCount)
+Statut :: COUVERT — test `TestBookZero` (ligne 51-56)
+Impact :: Les valeurs nulles ou négatives sont systématiquement rejetées
 ```
 
 #### TC-3.6 — Sur-réservation massive
@@ -166,10 +168,11 @@ Statut :: NON COUVERT — test documentaire (valide mais inutile métier)
 Slot := {Capacity:10, Booked:10}
 n := 100
 Appel := Book(Slot, 100)
-Résultat réel := {Capacity:10, Booked:110}  # Dépassement massif
+Résultat réel := (Slot{}, ErrCapacityExceeded)  # Créneau plein
 Résultat attendu :: ERREUR
-Assertion :: N/A
-Statut :: NON COUVERT — illustre le risque à grande échelle
+Assertion :: Book(...) == (Slot{}, ErrCapacityExceeded)
+Statut :: COUVERT implicitement par `TestBookCapacityExceeded` (logique générale)
+Impact :: Aucune surréservation n'est possible, peu importe l'ampleur de `n`
 ```
 
 ---
@@ -197,14 +200,15 @@ Risque :: Pas de test d'atomicité — aucun verrou entre IsAvailable et Book
 1. Appelant construit Slot{Capacity:10, Booked:10}  # Déjà plein
 2. Appelant appelle IsAvailable(Slot) → false
 3. Appelant DEVRAIT refuser la réservation
-4. Si (par erreur) l'appelant appelle Book(Slot, 1) → Slot{Booked:11}
+4. Si l'appelant appelle malgré tout Book(Slot, 1) → (Slot{}, ErrCapacityExceeded)
 
 Assertions :
   - IsAvailable(Slot) == false
-  - Book(Slot, 1).Booked == 11  (comportement réel, sans guard)
+  - Book(Slot, 1) == (Slot{}, ErrCapacityExceeded)  (comportement protégé)
 
-Statut :: NON COUVERT — la responsabilité de refuser repose sur l'appelant, pas sur Book
-Risque :: CRITIQUE — si l'appelant oublie de vérifier IsAvailable, sur-réservation silencieuse
+Statut :: COUVERT — `Book` valide automatiquement la disponibilité
+Risque :: RÉSOLU — `Book` retourne une erreur explicite si capacité dépassée
+Impact :: Aucune sur-réservation possible, même sans vérification préalable d'IsAvailable
 ```
 
 ---
@@ -219,9 +223,9 @@ Risque :: CRITIQUE — si l'appelant oublie de vérifier IsAvailable, sur-réser
 | `IsAvailable` nominal (true) | ✓ Couvert | High | OK |
 | `IsAvailable` créneau plein (false) | ✗ Non couvert | **High** | Ajouter test |
 | `Book` nominal (+2 places) | ✓ Couvert | High | OK |
-| `Book` sur-réservation | ✗ Non couvert | **CRITICAL** | Ajouter test + implémenter guard |
-| `Book` annulation implicite (-n) | ✗ Non couvert | **High** | Formaliser ou interdire |
-| `Book` no-op (n=0) | ✗ Non couvert | Medium | Documenter le comportement |
+| ~~`Book` sur-réservation~~ | ✓ **Couvert** | **RÉSOLU** | `TestBookCapacityExceeded` couvre le cas |
+| `Book` annulation (n<0) | ✓ **Couvert** | **RÉSOLU** | `TestBookNegative` rejetée via `ErrInvalidBookingCount` |
+| `Book` no-op (n=0) | ✓ **Couvert** | **RÉSOLU** | `TestBookZero` rejetée via `ErrInvalidBookingCount` |
 | Immuabilité de Slot | ✗ Non couvert | Medium | Ajouter test explicite |
 
 ---
@@ -230,10 +234,10 @@ Risque :: CRITIQUE — si l'appelant oublie de vérifier IsAvailable, sur-réser
 
 **Blocants** (doivent être résolus avant toute exposition HTTP/production) :
 
-1. ✗ `Book` doit retourner une `error` et rejeter la sur-réservation (`n > Remaining(s)` ou `n ≤ 0`).
-2. ✗ Tous les cas limites (TC-1.2, TC-1.3, TC-2.2, TC-3.3, TC-3.4) doivent être testés et documentés.
-3. ✗ Un `Slot` invalide (`Capacity ≤ 0`, `Booked < 0` après construction) doit être rejeté via constructeur validant.
-4. ✗ Annulation doit être une fonction explicite (`Cancel`) ou interdite via validation.
+1. ✓ **FAIT** — `Book` retourne une `error` et rejette la sur-réservation (`n > Remaining(s)` ou `n ≤ 0`) via `ErrCapacityExceeded` et `ErrInvalidBookingCount`.
+2. ⚠ Partiellement couvert — TC-3.3 (sur-réservation), TC-3.4 (n<0), TC-3.5 (n=0) testés. Restent TC-1.2, TC-1.3, TC-2.2 (Remaining/IsAvailable cas limites) — cas importants mais secondaires.
+3. ✗ Un `Slot` invalide (`Capacity ≤ 0`, `Booked < 0` après construction) doit être rejeté via constructeur validant `NewSlot(...)`.
+4. ✓ Partiellement fait — annulation via `Book(s, -n)` interdite (`ErrInvalidBookingCount`). Une fonction explicite `Cancel` reste à créer pour formellement supporter l'annulation.
 
 **Non-blocants** (amélioration, peut suivre) :
 

@@ -38,11 +38,11 @@ Le risque architectural immédiat n'est pas dans ce qui est là — c'est dans c
 
 ## Zones critiques
 
-- `VÉRIFIÉ_CODE` : `internal/booking/booking.go` — le seul fichier de production. Toute évolution du projet passe par là. C'est aussi là que réside le risque de sur-réservation silencieuse (`Book` sans garde).
+- `VÉRIFIÉ_CODE` : `internal/booking/booking.go` — le seul fichier de production. Toute évolution du projet passe par là. Le risque de sur-réservation silencieuse a été résorbé : `Book` valide désormais `n > 0` et `n ≤ Remaining(s)`, retourne `(Slot, error)` (`booking.go:36-45`).
 
 ## Risques
 
-- `VÉRIFIÉ_CODE` (défaut prouvé, impact futur) : Lorsqu'un transport (HTTP, etc.) sera ajouté, le passage de `Slot` par valeur sans persistance rendra chaque réservation éphémère — la valeur retournée par `Book` doit être explicitement stockée ou propagée par l'appelant (`booking.go:27`). Oublier de le faire est un bug silencieux.
+- `VÉRIFIÉ_CODE` (impact futur, plutôt que défaut) : Lorsqu'un transport (HTTP, etc.) sera ajouté, le passage de `Slot` par valeur sans persistance rendra chaque réservation éphémère — la valeur retournée par `Book` doit être explicitement stockée ou propagée par l'appelant (`booking.go:43-44`). Oublier de le faire est un bug silencieux. Note : la validation dans `Book` elle-même garantit désormais que seuls les états valides sont retournés.
 - `HYPOTHÈSE` : Si le même slot est manipulé par plusieurs goroutines (futur serveur concurrent), le schéma `IsAvailable → Book` n'est pas atomique : une race condition TOCTOU est possible. Le code actuel n'en souffre pas (mono-goroutine, pas de serveur), mais aucun avertissement ni mécanisme de verrouillage n'est en place pour signaler ce risque lors de l'évolution.
 
 ## Recommandations priorisées

@@ -8,7 +8,7 @@ Le code actuel n'expose aucune surface d'attaque directe : il n'y a ni serveur, 
 
 ## Résumé exécutif
 
-Aucun secret dans le code (`VÉRIFIÉ_CODE`). Aucun appel réseau ni SQL (`VÉRIFIÉ_CODE`). Le risque de sécurité le plus concret est fonctionnel : `Book` n'effectue aucune validation de ses paramètres et peut produire silencieusement un état incohérent (`Booked > Capacity`, `n` négatif). Ce n'est pas exploitable aujourd'hui depuis l'extérieur, mais ce sera le premier vecteur de manipulation si une couche HTTP est ajoutée sans ajouter la validation correspondante. Robustesse : les fonctions ne retournent jamais d'erreur, il n'y a aucun mécanisme de gestion de panique, et la suite de tests ne couvre aucun cas limite.
+Aucun secret dans le code (`VÉRIFIÉ_CODE`). Aucun appel réseau ni SQL (`VÉRIFIÉ_CODE`). Les risques de sécurité fonctionnels ont été résorbés : `Book` valide désormais ses paramètres et rejette `n ≤ 0` avec `ErrInvalidBookingCount` et `n > Remaining(s)` avec `ErrCapacityExceeded`. Aucun état incohérent ne peut plus être produit par `Book`. Robustesse : `Book` retourne maintenant un `error`, la suite de tests couvre les cas limites critiques (`TestBookZero`, `TestBookNegative`, `TestBookCapacityExceeded`, `TestBookExactCapacity`).
 
 ## Constats détaillés
 
@@ -16,9 +16,9 @@ Aucun secret dans le code (`VÉRIFIÉ_CODE`). Aucun appel réseau ni SQL (`VÉRI
 
 **`VÉRIFIÉ_CODE` — Aucune dépendance externe, aucun appel réseau.** Le `go.mod` n'importe que la bibliothèque standard (absence de bloc `require` dans `go.mod`). Le seul import de `booking.go` est `"time"` (`booking.go:3`). Il n'y a pas de `net/http`, `database/sql`, `os/exec`, ou `reflect` — le vecteur de supply-chain et d'injection est nul dans l'état actuel.
 
-**`VÉRIFIÉ_CODE` — `Book` n'effectue aucune validation d'entrée.** `Book(s Slot, n int) Slot` incrémente `s.Booked` de `n` sans aucune vérification (`booking.go:26`). En conséquence : (1) `n` peut être négatif — `Book(s, -3)` décrémente `Booked` de 3, simulant une annulation non documentée ni testée ; (2) `n` peut être zéro — no-op silencieux ; (3) `n` peut dépasser la capacité restante — `Book` retourne un `Slot` avec `Booked > Capacity` sans erreur. Aucun de ces cas ne lève de `panic`, ne retourne d'erreur, et n'est couvert par un test (`booking_test.go:24-29` teste uniquement `n=2` sur `Capacity=10, Booked=4`).
+**`VÉRIFIÉ_CODE` — `Book` valide désormais ses entrées.** `Book(s Slot, n int) (Slot, error)` valide les pré-conditions (`booking.go:37-41`) : (1) `n ≤ 0` → retourne `ErrInvalidBookingCount` (`booking.go:37-39`), rejetant les valeurs négatives ou nulles ; (2) `n > Remaining(s)` → retourne `ErrCapacityExceeded` (`booking.go:40-41`), empêchant la sur-réservation. Tous ces cas sont couverts par des tests (`TestBookZero` ligne 51, `TestBookNegative` ligne 58, `TestBookCapacityExceeded` ligne 34, `TestBookExactCapacity` ligne 41).
 
-**`VÉRIFIÉ_CODE` — Aucun type d'erreur — aucun signal de défaut.** Les signatures `Remaining(s Slot) int`, `IsAvailable(s Slot) bool`, `Book(s Slot, n int) Slot` ne retournent jamais `error` (`booking.go:15, 20, 25`). Un état invalide (sur-réservation, `n` négatif) est retourné comme valeur nominale, indiscernable d'un résultat correct du point de vue du type.
+**`VÉRIFIÉ_CODE` — `Book` retourne désormais un type `error` pour les défauts.** La signature `Book(s Slot, n int) (Slot, error)` (`booking.go:36`) retourne un `error` non nul pour indiquer une tentative invalide (`ErrInvalidBookingCount` si `n ≤ 0`, `ErrCapacityExceeded` si `n > Remaining(s)`). Les signatures `Remaining(s Slot) int` et `IsAvailable(s Slot) bool` demeurent sans `error` car ce sont des fonctions pures de requête, pas de mutation.
 
 **`VÉRIFIÉ_CODE` — Aucun mécanisme de gestion de panique.** Aucun `defer`, `recover`, ou gestion d'erreur de runtime dans le package. Si un appelant fournit un `Slot` avec des valeurs extrêmes (ex. `Capacity = math.MaxInt`, `Booked = -math.MinInt`), l'arithmétique `Capacity - Booked` peut provoquer un débordement d'entier silencieux en Go (comportement défini par le compilateur, mais résultat numériquement incorrect).
 
@@ -32,8 +32,8 @@ Aucun secret dans le code (`VÉRIFIÉ_CODE`). Aucun appel réseau ni SQL (`VÉRI
 
 ## Dettes techniques
 
-- `VÉRIFIÉ_CODE` : `Book` ne valide pas `n` et ne vérifie pas la disponibilité avant d'incrémenter `Booked` (`booking.go:26`) — dette fonctionnelle directement connexe à la robustesse.
-- `VÉRIFIÉ_CODE` : Aucun type `error` sur les fonctions — impossible pour un appelant de distinguer un résultat valide d'un résultat issu d'un appel sémantiquement invalide.
+- ~~`VÉRIFIÉ_CODE` : `Book` ne valide pas `n` et ne vérifie pas la disponibilité avant d'incrémenter `Booked`~~ — **RÉSOLU** : `Book` valide `n > 0` et `n ≤ Remaining(s)` avant tout incrément, retourne `(Slot, error)` (`booking.go:36-45`).
+- ~~`VÉRIFIÉ_CODE` : Aucun type `error` sur les fonctions~~ — **RÉSOLU** : `Book` expose `ErrInvalidBookingCount` et `ErrCapacityExceeded` et retourne un `error` non nul en cas de violation (`booking.go:8-12, 36-45`).
 - `VÉRIFIÉ_CODE` : La fixture de test `sample()` utilise `time.Now()` (`booking_test.go:9`), ce qui rend les tests non déterministes si le champ `Start` venait à être utilisé dans une comparaison future. Ce n'est pas un problème aujourd'hui (aucune fonction ne lit `Start`), mais c'est une dette latente.
 
 ## Zones critiques
@@ -42,7 +42,7 @@ Aucun secret dans le code (`VÉRIFIÉ_CODE`). Aucun appel réseau ni SQL (`VÉRI
 
 ## Risques
 
-- `VÉRIFIÉ_CODE` (impact futur, défaut prouvé) : Sans validation de `n`, une couche HTTP mal conçue exposerait directement la sur-réservation silencieuse à un attaquant (`booking.go:26`). Impact : intégrité des données compromise, impossibilité de distinguer un état valide d'un état manipulé.
+- ~~`VÉRIFIÉ_CODE` (impact futur, défaut prouvé) : Sans validation de `n`, une couche HTTP mal conçue exposerait directement la sur-réservation silencieuse~~ — **RÉSOLU** : `Book` valide les pré-conditions et retourne une erreur explicite. L'intégrité des données est désormais garantie par `Book` elle-même (`booking.go:36-45`).
 - `HYPOTHÈSE` : Débordement d'entier possible si `Capacity` ou `Booked` sont proches de `math.MaxInt`/`math.MinInt` — Go ne panique pas sur ces cas, il retourne une valeur fausse (`booking.go:16`). Impact actuel : nul (aucun appelant externe). Impact futur : silencieusement incorrect si des valeurs non validées sont acceptées.
 - `HYPOTHÈSE` : Si le README ("Git → staging") implique un déploiement réel sans layer de sécurité (auth, rate limiting, TLS), la surface d'attaque pourrait être entière dès le premier service exposé. Non vérifiable sans accès à l'environnement staging.
 

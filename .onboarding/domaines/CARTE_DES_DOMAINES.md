@@ -74,11 +74,7 @@ germe.
   Impossible de déduire des workflows de bout en bout ou une frontière
   d'intégration à ce stade — l'Analyste de workflows aura peu de matière. À
   signaler au Chef d'Onboarding.
-- **`Book` sans garde de capacité.** `Book` incrémente `Booked` sans vérifier
-  `IsAvailable`/`Capacity` : un créneau peut être sur-réservé
-  (`Booked > Capacity`, `Remaining` négatif). Est-ce un choix (validation
-  déléguée à l'appelant) ou une lacune du pilote ? À confirmer par le board /
-  l'audit fonctionnel.
+- ~~**`Book` sans garde de capacité.**~~ — **RÉSOLU** : `Book` valide désormais que `n > 0` (`ErrInvalidBookingCount`) et `n ≤ Remaining(s)` (`ErrCapacityExceeded`) avant incrément. Un créneau ne peut plus être sur-réservé via `Book`. Les tests `TestBookZero`, `TestBookNegative`, `TestBookCapacityExceeded`, `TestBookExactCapacity` couvrent ces cas.
 - **« SHIFT/Paperclip ».** Le README qualifie le dépôt de « pilote de test
   SHIFT/Paperclip ». Rien dans le code ne relie à un système SHIFT externe ;
   terme métier non tranché ici (réservé au board).
