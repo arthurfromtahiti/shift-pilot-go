@@ -46,7 +46,7 @@ type Slot struct {
 
 ## Dettes techniques
 
-- `VÉRIFIÉ_CODE` : `Booked` peut légalement dépasser `Capacity` — l'invariant fondamental d'un créneau (places réservées ≤ capacité) n'est jamais enforced dans le modèle ni dans les fonctions (`booking.go:26`).
+- ~~`VÉRIFIÉ_CODE` : `Booked` peut légalement dépasser `Capacity`~~ — **RÉSOLU** : `Book` valide `n ≤ Remaining(s)` avant d'incrémenter `Booked`, garantissant `Booked ≤ Capacity` (`booking.go:40-41`). L'invariant est enforced par `Book`, bien qu'un `Slot` construit manuellement avec `Booked > Capacity` reste syntaxiquement valide.
 - `VÉRIFIÉ_CODE` : `Capacity` peut être zéro ou négatif — aucune garde à la construction (`booking.go:6-12`).
 - `VÉRIFIÉ_CODE` : `ID int` est insuffisant pour un système distribué ou avec persistance — collisions possibles, pas de génération automatique, pas d'opacité.
 - `VÉRIFIÉ_CODE` : Absence de champ `End` ou `Duration` — impossible de calculer la durée d'un créneau, de détecter les chevauchements, ou d'afficher un créneau complet.
@@ -57,7 +57,7 @@ type Slot struct {
 
 ## Risques
 
-- `VÉRIFIÉ_CODE` (défaut prouvé, impact connu) : `Booked > Capacity` est un état atteignable via `Book` sans erreur (`booking.go:26`). Si ce `Slot` est persisté (future base de données), il représente une donnée corrompue indiscernable d'une donnée valide.
+- ~~`VÉRIFIÉ_CODE` (défaut prouvé, impact connu) : `Booked > Capacity` est un état atteignable via `Book` sans erreur~~ — **RÉSOLU** : `Book` rejette `n > Remaining(s)` avec `ErrCapacityExceeded` (`booking.go:40-41`). L'invariant `Booked ≤ Capacity` est garanti par `Book`.
 - `HYPOTHÈSE` : Si une base de données est ajoutée sans avoir introduit de contraintes d'intégrité (CHECK `booked >= 0`, CHECK `booked <= capacity`, etc.), le modèle actuel permettra l'insertion d'états invalides au niveau SQL, avec des répercussions difficiles à corriger a posteriori sur des données existantes.
 - `HYPOTHÈSE` : L'identifiant `ID int` sans unicité enforced est une source probable de conflits dès que plusieurs créneaux coexistent en mémoire ou en base.
 

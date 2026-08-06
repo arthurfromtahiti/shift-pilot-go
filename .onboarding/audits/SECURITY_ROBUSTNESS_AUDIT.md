@@ -38,7 +38,7 @@ Aucun secret dans le code (`VÉRIFIÉ_CODE`). Aucun appel réseau ni SQL (`VÉRI
 
 ## Zones critiques
 
-- `VÉRIFIÉ_CODE` : `internal/booking/booking.go:25-28` (`Book`) — point unique de mutation d'état sans validation. Si ce code est exposé via une API sans blindage amont, c'est la première cible à auditer.
+- `VÉRIFIÉ_CODE` : `internal/booking/booking.go:36-45` (`Book`) — point unique de mutation d'état avec validation des pré-conditions. Valide `n > 0` et `n ≤ Remaining(s)` avant d'incrémenter `Booked`. Si ce code est exposé via une API sans blindage amont, les validations métier sont en place ; il restera à ajouter la validation des entrées utilisateur en amont (transport layer).
 
 ## Risques
 
@@ -48,10 +48,10 @@ Aucun secret dans le code (`VÉRIFIÉ_CODE`). Aucun appel réseau ni SQL (`VÉRI
 
 ## Recommandations priorisées
 
-1. **Ajouter une validation et un retour `error` à `Book`** : `func Book(s Slot, n int) (Slot, error)` retournant une erreur si `n <= 0`, si `n > Remaining(s)`, ou si `Booked < 0` — `internal/booking/booking.go:25`.
-2. **Définir des constructeurs validants pour `Slot`** (ex. `func NewSlot(capacity int, ...) (Slot, error)`) pour empêcher la création d'un `Slot` avec `Capacity <= 0` — `internal/booking/booking.go`.
+1. ~~**Ajouter une validation et un retour `error` à `Book`**~~ — **FAIT** : `Book` retourne maintenant `(Slot, error)`, valide `n > 0` (retourne `ErrInvalidBookingCount` sinon) et `n ≤ Remaining(s)` (retourne `ErrCapacityExceeded` sinon) — `internal/booking/booking.go:36-45`.
+2. **Définir des constructeurs validants pour `Slot`** (ex. `func NewSlot(capacity int, ...) (Slot, error)`) pour empêcher la création d'un `Slot` avec `Capacity <= 0` ou `Booked < 0` — `internal/booking/booking.go`.
 3. **Remplacer `time.Now()` dans la fixture de test** par une heure fixe (`time.Date(...)`) pour garantir la reproductibilité des tests si `Start` devient fonctionnel — `internal/booking/booking_test.go:9`.
-4. **Documenter explicitement que `Book` ne doit jamais être appelé sans vérification préalable de `IsAvailable`** — au minimum un commentaire dans le code en attendant la validation interne — `internal/booking/booking.go:24`.
+4. **Ajouter une validation des valeurs extrêmes** : mécanisme pour détecter les débordements d'entier si `Capacity` ou `Booked` sont proches de `math.MaxInt` — `internal/booking/booking.go`.
 
 ## Questions ouvertes
 
