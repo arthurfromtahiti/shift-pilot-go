@@ -47,3 +47,17 @@ func TestBookExactCapacity(t *testing.T) {
 		t.Fatalf("Booked = %d, attendu %d (capacité pleine)", s.Booked, s.Capacity)
 	}
 }
+
+func TestBookZero(t *testing.T) {
+	_, err := Book(sample(), 0)
+	if err != ErrInvalidBookingCount {
+		t.Fatalf("attendu ErrInvalidBookingCount pour n=0, obtenu %v", err)
+	}
+}
+
+func TestBookNegative(t *testing.T) {
+	_, err := Book(sample(), -3)
+	if err != ErrInvalidBookingCount {
+		t.Fatalf("attendu ErrInvalidBookingCount pour n=-3, obtenu %v", err)
+	}
+}
