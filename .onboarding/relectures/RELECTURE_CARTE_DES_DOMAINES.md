@@ -28,7 +28,7 @@ Le code est transparent : 3 fonctions pures sans ambiguïté, 1 struct bien nomm
    - Champs `ID`, `Activity`, `Start time.Time`, `Capacity`, `Booked` → confirmés lignes 7-11. `VÉRIFIÉ_CODE`.
    - `Remaining(s Slot) int` à `booking.go:15` → confirmé. `VÉRIFIÉ_CODE`.
    - `IsAvailable(s Slot) bool` à `booking.go:20` → confirmé. `VÉRIFIÉ_CODE`.
-   - `Book(s Slot, n int) Slot` à `booking.go:25` → confirmé. `VÉRIFIÉ_CODE`.
+   - `Book(s Slot, n int) (Slot, error)` à `booking.go:36` → confirmé. `VÉRIFIÉ_CODE`.
    - `Book` retourne par valeur (pas de mutation en place) → confirmé : `s.Booked += n; return s` (`booking.go:26-27`). `VÉRIFIÉ_CODE`.
 
 2. **Tests cités présents.**
@@ -55,7 +55,7 @@ Le code est transparent : 3 fonctions pures sans ambiguïté, 1 struct bien nomm
    - La règle des 4-12 domaines s'applique à des projets de production. Ce pilote de 28 lignes de logique métier ne peut pas être fragmenté sans inventer des domaines. Un seul domaine est la seule réponse correcte et honnête. `VÉRIFIÉ_CODE`.
 
 9. **Observation fonctionnelle `Book` sans garde — correctement remontée en incertitude.**
-   - `Book` incrémente `Booked` sans appeler `IsAvailable` (`booking.go:25-27`) : sur-réservation possible. La carte l'identifie correctement comme incertitude fonctionnelle à confirmer. `VÉRIFIÉ_CODE`.
+   - `Book` valide `n > 0` et `n ≤ Remaining(s)` avant incrément de `Booked` (`booking.go:37-43`) : la sur-réservation est impossible. La carte documente ce comportement correctement. `VÉRIFIÉ_CODE`.
 
 ## Recommandations de correction
 

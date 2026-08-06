@@ -38,7 +38,7 @@ _Aucun défaut de tracé fonctionnel bloquant identifié._
 
 ## Points vérifiés et corrects
 
-- **Tracé de `Book` sans garde** : le défaut fonctionnel central est correctement décrit et cité dans les quatre documents, avec références à `internal/booking/booking.go:25-28`. Tracé à `FUNCTIONAL_AUDIT.md`, `CODE_HOTSPOTS_AUDIT.md`, `WORKFLOW_RESERVER_PLACES.md`.
+- **Tracé de `Book` avec gardes** : `Book` est correctement décrit comme validant ses pré-conditions (`n > 0`, `n ≤ Remaining(s)`) avec références à `internal/booking/booking.go:36-45` (gardes aux lignes 37-41, incrément à ligne 43). Tracé à `FUNCTIONAL_AUDIT.md`, `WORKFLOW_RESERVER_PLACES.md`, `TESTING_AUDIT.md`.
 - **Absence de persistance** : correctement traitée dans `PROJECT_CONTEXT.md`, `CDC_FONCTIONNEL.md` et `CAHIER_RECETTE.md`. Tracée à `ARCHITECTURE_AUDIT.md` et `DATA_MODEL_AUDIT.md`.
 - **Risque TOCTOU (`IsAvailable → Book` non atomique)** : correctement mentionné dans `CDC_FONCTIONNEL.md` (WF2) et `CAHIER_RECETTE.md` (WS-1). Tracé à `WORKFLOW_CONSULTER_DISPONIBILITE.md` (section Risques) et `CODE_HOTSPOTS_AUDIT.md`.
 - **Couverture de tests** : `CAHIER_RECETTE.md` liste fidèlement les cas non couverts (TC-1.2, TC-2.2, TC-3.3, TC-3.4) en les faisant correspondre aux lacunes identifiées dans `TESTING_AUDIT.md` et `CODE_HOTSPOTS_AUDIT.md`.

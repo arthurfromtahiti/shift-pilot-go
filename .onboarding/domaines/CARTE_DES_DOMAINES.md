@@ -42,7 +42,7 @@ germe.
 - **Routes / points d'entrée** : *aucune* — pas de serveur ni de handler. Le
   domaine n'est exposé que comme API de package Go : `Remaining(Slot) int`
   (`booking.go:15`), `IsAvailable(Slot) bool` (`booking.go:20`),
-  `Book(Slot, int) (Slot, error)` (`booking.go:36`). À noter : `Book` retourne
+  `Book(s Slot, n int) (Slot, error)` (`booking.go:36`). À noter : `Book` retourne
   un `Slot` **par valeur** et une `error`, avec deux gardes :
   `ErrInvalidBookingCount` si n ≤ 0, `ErrCapacityExceeded` si n dépasse
   les places restantes.

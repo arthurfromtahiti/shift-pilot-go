@@ -18,9 +18,9 @@ Le risque architectural immédiat n'est pas dans ce qui est là — c'est dans c
 
 **`VÉRIFIÉ_CODE` — Aucun exécutable, aucun serveur, aucune route.** Il n'existe pas de `func main` dans le dépôt (`find` sur `*.go` : un seul fichier de prod, `booking.go`, et un fichier de tests). Le projet est une bibliothèque. Il n'y a ni handler HTTP, ni CLI, ni goroutine de service. Le README (`README.md:12`) mentionne `git → staging` comme instruction de déploiement, mais aucun `Dockerfile`, `Makefile`, `.github/`, ni configuration CI n'est présent dans le dépôt. Ce que "staging" désigne est `INCONNU`.
 
-**`VÉRIFIÉ_CODE` — Fonctions pures, passage par valeur.** Les trois fonctions de `booking.go` reçoivent `Slot` par valeur (copie) et retournent soit un scalaire, soit un nouveau `Slot`. Il n'y a pas de pointeur, pas de mutation d'état partagé, pas d'effet de bord observable. C'est structurellement correct pour des calculs purs et rend chaque fonction testable en isolation totale. En revanche, `Book` (`booking.go:25-28`) retourne un `Slot` modifié que l'appelant doit impérativement utiliser — sinon la réservation est perdue. Ce pattern est idiomatique en Go pour des types valeur, mais il exige une discipline d'usage que rien dans le code n'enforces.
+**`VÉRIFIÉ_CODE` — Fonctions pures, passage par valeur.** Les trois fonctions de `booking.go` reçoivent `Slot` par valeur (copie) et retournent soit un scalaire, soit un nouveau `Slot`. Il n'y a pas de pointeur, pas de mutation d'état partagé, pas d'effet de bord observable. C'est structurellement correct pour des calculs purs et rend chaque fonction testable en isolation totale. `Book` (`booking.go:36-45`) retourne un `(Slot, error)` modifié que l'appelant doit impérativement utiliser — sinon la réservation est perdue. Ce pattern est idiomatique en Go pour des types valeur, mais il exige une discipline d'usage que rien dans le code n'enforces.
 
-**`VÉRIFIÉ_CODE` — Aucune interface, aucun type d'erreur.** Aucun `interface` n'est défini dans le package. Les fonctions retournent `int`, `bool`, et `Slot` — jamais `error`. Il n'existe pas de sentinel error, pas de type personnalisé d'erreur, pas de `errors.New`. Le package n'a donc aucun mécanisme pour signaler qu'un appel est sémantiquement invalide (ex. `Book` sur un créneau plein).
+**`VÉRIFIÉ_CODE` — Aucune interface, mais types d'erreur pour `Book`.** Aucun `interface` n'est défini dans le package. `Remaining` retourne `int`, `IsAvailable` retourne `bool`, mais `Book` retourne `(Slot, error)` avec deux sentinelles : `ErrInvalidBookingCount` (si `n ≤ 0`) et `ErrCapacityExceeded` (si `n > Remaining(s)`). Le package possède donc un mécanisme pour signaler les appels sémantiquement invalides — notamment sur-réservation et valeurs invalides de `n`.
 
 **`HYPOTHÈSE` — La croissance vers un service va nécessiter des décisions architecturales majeures.** Si le pilote doit devenir un service (HTTP, gRPC, ou autre), il manque : une couche de transport, une couche de persistance, un modèle d'erreur, une couche d'interfaces pour testabilité et découplage, et probablement un schéma de concurrence (goroutines, canaux ou mutex). Aucune de ces décisions n'est amorcée. Ce n'est pas une critique du pilote tel qu'il est — c'est un signal pour le planificateur.
 
@@ -32,7 +32,7 @@ Le risque architectural immédiat n'est pas dans ce qui est là — c'est dans c
 
 ## Dettes techniques
 
-- `VÉRIFIÉ_CODE` : Absence de type d'erreur — `Book` ne peut pas signaler une tentative de sur-réservation (`booking.go:25-28`). Cette dette est légère aujourd'hui (c'est une lib de pilote), mais bloquante dès qu'une couche appelante doit distinguer succès et échec.
+- ~~`VÉRIFIÉ_CODE` : Absence de type d'erreur~~ — **RÉSOLU** : `Book` retourne `(Slot, error)` avec `ErrInvalidBookingCount` si `n ≤ 0` et `ErrCapacityExceeded` si `n > Remaining(s)` (`booking.go:36-45`). Sur-réservation et valeurs de `n` invalides signalent une erreur explicite.
 - `VÉRIFIÉ_CODE` : Absence d'interface — l'appelant de `booking` est couplé aux types concrets. Si le comportement de `Book` ou `Remaining` évolue, tous les appelants doivent être mis à jour sans filet (`booking.go:1-28`).
 - `HYPOTHÈSE` : Absence de configuration de build et de CI/CD — si "staging" est un vrai environnement, le chemin de build → déploiement est soit documenté ailleurs, soit informel. Dans les deux cas, il n'est pas versionné avec le code.
 
@@ -48,7 +48,7 @@ Le risque architectural immédiat n'est pas dans ce qui est là — c'est dans c
 ## Recommandations priorisées
 
 1. **Définir une interface `BookingService`** avant d'ajouter une couche de transport — permet de substituer l'implémentation, de mocker en test, et de découpler — `internal/booking/booking.go`.
-2. **Introduire un type `error` sur `Book`** (`func Book(s Slot, n int) (Slot, error)`) pour signaler la sur-réservation — sans ça, toute couche appelante doit dupliquer la logique de garde — `internal/booking/booking.go:25`.
+2. ~~**Introduire un type `error` sur `Book`**~~ — **FAIT** : `func Book(s Slot, n int) (Slot, error)` retourne `ErrInvalidBookingCount` ou `ErrCapacityExceeded` selon les violations de pré-conditions — `internal/booking/booking.go:36-45`.
 3. **Ajouter une configuration CI (GitHub Actions ou équivalent)** qui exécute `go test ./...` à chaque push — garantit que le code reste vert même après ajout de dépendances ou de fonctions — (fichier à créer : `.github/workflows/ci.yml`).
 4. **Clarifier la cible du pilote** (lib vs service) dans `README.md` — le "Git → staging" est ambigu et peut mener à des déploiements non bornés.
 
