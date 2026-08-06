@@ -23,21 +23,21 @@ Permettre à un code appelant d'enregistrer la réservation de `n` places sur un
 
 1. **L'appelant construit ou obtient un `Slot` et choisit `n`** — le `Slot` doit porter `Capacity` et `Booked` actuels. `n` est le nombre de places à réserver. `n` doit être positif et ≤ `Remaining(s)`.
 
-2. **`Book` valide les pré-conditions** — `n ≤ 0` → retourne `(s, ErrInvalidBookingCount)` ; `n > Remaining(s)` → retourne `(s, ErrCapacityExceeded)` (`internal/booking/booking.go:37-41`). La fonction opère sur une **copie locale** du `Slot` reçu par valeur — le `Slot` original de l'appelant n'est pas modifié.
+2. **`Book` valide les pré-conditions** — `n ≤ 0` → retourne `(s, ErrInvalidBookingCount)` ; `n > Remaining(s)` → retourne `(s, ErrCapacityExceeded)` (`internal/booking/booking.go:37-42`). La fonction opère sur une **copie locale** du `Slot` reçu par valeur — le `Slot` original de l'appelant n'est pas modifié.
 
-3. **`Book` incrémente `Booked` de `n` et retourne `(Slot, nil)`** — `s.Booked += n; return s, nil` (`internal/booking/booking.go:42-44`). Le créneau retourné est une nouvelle valeur avec `Booked` incrémenté ; les autres champs (`ID`, `Activity`, `Start`, `Capacity`) sont inchangés.
+3. **`Book` incrémente `Booked` de `n` et retourne `(Slot, nil)`** — `s.Booked += n; return s, nil` (`internal/booking/booking.go:43-44`). Le créneau retourné est une nouvelle valeur avec `Booked` incrémenté ; les autres champs (`ID`, `Activity`, `Start`, `Capacity`) sont inchangés.
 
 4. **L'appelant est responsable de la suite** — persistance (absente dans le pilote), propagation à d'autres systèmes (non prévue dans le code actuel). Tout ce qui suit l'appel à `Book` est hors périmètre du code existant.
 
 ## Règles métier
 
-- **`Book` valide ses pré-conditions** : `n ≤ 0` → `ErrInvalidBookingCount` ; `n > Remaining(s)` → `ErrCapacityExceeded` (`internal/booking/booking.go:37-41`). Un créneau complet ou une valeur `n` invalide provoque un retour d'erreur explicite — la sur-réservation silencieuse est impossible.
+- **`Book` valide ses pré-conditions** : `n ≤ 0` → `ErrInvalidBookingCount` ; `n > Remaining(s)` → `ErrCapacityExceeded` (`internal/booking/booking.go:37-42`). Un créneau complet ou une valeur `n` invalide provoque un retour d'erreur explicite — la sur-réservation silencieuse est impossible.
 - **La réservation est non destructive pour le `Slot` source** : `Book` reçoit `s Slot` par valeur (copie) et retourne une nouvelle valeur — pas de mutation en place, pas de pointeur. L'appelant doit utiliser la valeur de retour pour obtenir l'état mis à jour.
 - **`n` négatif ou nul est rejeté** : `Book(s, -2)` et `Book(s, 0)` retournent `ErrInvalidBookingCount`. L'annulation nécessitera une fonction dédiée.
 
 ## Données
 
-- **`Slot`** (`internal/booking/booking.go:6-12`) : créneau d'activité, seule entité de données.
+- **`Slot`** (`internal/booking/booking.go:15-21`) : créneau d'activité, seule entité de données.
   - **En entrée** : `Booked int` (état courant) + `Capacity int` (non lu par `Book`, mais nécessaire pour que `Remaining`/`IsAvailable` soient cohérents après l'appel)
   - **En sortie** : `(Slot, error)` — nouveau `Slot` avec `Booked` incrémenté de `n` si succès, erreur non nulle sinon ; tous les autres champs du `Slot` inchangés
 - **`n int`** : nombre de places à réserver (doit être > 0 et ≤ `Remaining(s)`)
@@ -61,6 +61,6 @@ Aucune intégration externe explicite visible. Pas de persistance, pas de messag
 
 ## Preuves
 
-- `internal/booking/booking.go` — lu intégralement (`VÉRIFIÉ_CODE`) : type `Slot` (lignes 15-21), erreurs sentinelles (lignes 9, 12), `Book` (lignes 36-45)
+- `internal/booking/booking.go` — lu intégralement (`VÉRIFIÉ_CODE`) : type `Slot` (lignes 15-21), erreurs sentinelles (lignes 9 et 12), `Book` (lignes 36-45)
 - `internal/booking/booking_test.go` — lu intégralement (`VÉRIFIÉ_CODE`) : `TestBook` (lignes 24-32), `TestBookCapacityExceeded` (34-39), `TestBookExactCapacity` (41-49), `TestBookZero` (51-56), `TestBookNegative` (58-63)
 - `go.mod` — lu (`VÉRIFIÉ_CODE`) : module `github.com/arthurfromtahiti/shift-pilot-go`, Go 1.21, aucune dépendance externe

@@ -15,9 +15,9 @@ Aucun.
 ## Points vérifiés et corrects
 
 - **Fichiers cités existants** : `internal/booking/booking.go`, `internal/booking/booking_test.go`, `go.mod` — tous lus et correspondant aux descriptions. (Preuve : lecture directe des trois fichiers.)
-- **Point d'entrée `Book(s Slot, n int) (Slot, error)`** : à la ligne 36 de `booking.go` — exact. (Preuve : `booking.go:36`.)
+- **Point d'entrée `Book(s Slot, n int) (Slot, error)`** : à la ligne 36 de `booking.go` — exact. (Preuve : `booking.go:36-45`.)
 - **Garde `n ≤ 0` → `ErrInvalidBookingCount`** : `booking.go:37-38`. Exact. (Preuve : `if n <= 0 { return s, ErrInvalidBookingCount }`.)
-- **Garde `n > Remaining(s)` → `ErrCapacityExceeded`** : `booking.go:39-41`. Exact. (Preuve : `if n > Remaining(s) { return s, ErrCapacityExceeded }`.)
+- **Garde `n > Remaining(s)` → `ErrCapacityExceeded`** : `booking.go:40-41`. Exact. (Preuve : `if n > Remaining(s) { return s, ErrCapacityExceeded }`.)
 - **`s.Booked += n` à la ligne 43** : exact. (Preuve : `booking.go:43`.)
 - **`return s, nil` à la ligne 44** : exact. (Preuve : `booking.go:44`.)
 - **Passage par valeur (copie)** : `Book` reçoit `s Slot` par valeur, opère sur une copie locale, et retourne la copie modifiée avec `nil` en cas de succès — conformément à la signature `func Book(s Slot, n int) (Slot, error)`. L'appelant doit utiliser la valeur de retour. (Preuve : `booking.go:36-45`.)

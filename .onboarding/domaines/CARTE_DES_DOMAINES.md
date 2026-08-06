@@ -38,14 +38,14 @@ germe.
   matérialisée dans le code, et elle porte la raison d'être annoncée du projet
   (réservation d'activités nautiques).
 - **Entités** : `Slot` (champs `ID`, `Activity`, `Start time.Time`, `Capacity`,
-  `Booked`) — `internal/booking/booking.go:6`.
+  `Booked`) — `internal/booking/booking.go:15-21`.
 - **Routes / points d'entrée** : *aucune* — pas de serveur ni de handler. Le
   domaine n'est exposé que comme API de package Go : `Remaining(Slot) int`
-  (`booking.go:15`), `IsAvailable(Slot) bool` (`booking.go:20`),
-  `Book(s Slot, n int) (Slot, error)` (`booking.go:36`). À noter : `Book` retourne
+  (`booking.go:24-26`), `IsAvailable(Slot) bool` (`booking.go:29-31`),
+  `Book(s Slot, n int) (Slot, error)` (`booking.go:36-45`). À noter : `Book` retourne
   un `Slot` **par valeur** et une `error`, avec deux gardes :
-  `ErrInvalidBookingCount` si n ≤ 0, `ErrCapacityExceeded` si n dépasse
-  les places restantes.
+  `ErrInvalidBookingCount` si n ≤ 0 (`booking.go:37-39`), `ErrCapacityExceeded` si n dépasse
+  les places restantes (`booking.go:40-42`).
 - **Indices de rattachement** : package `internal/booking`, type `Slot`,
   identifiants `Capacity`/`Booked`/`Remaining`/`IsAvailable`/`Book`, terme
   `Activity`. Ne matche que `internal/booking/*.go`.

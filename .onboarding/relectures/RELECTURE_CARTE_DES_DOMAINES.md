@@ -24,12 +24,12 @@ Le code est transparent : 3 fonctions pures sans ambiguïté, 1 struct bien nomm
 ## Points vérifiés et corrects
 
 1. **Preuves du domaine `reservation-creneaux` — toutes vérifiées par lecture directe des fichiers.**
-   - `Slot struct` à `booking.go:6` → confirmé (`type Slot struct {` ligne 6). `VÉRIFIÉ_CODE`.
-   - Champs `ID`, `Activity`, `Start time.Time`, `Capacity`, `Booked` → confirmés lignes 7-11. `VÉRIFIÉ_CODE`.
-   - `Remaining(s Slot) int` à `booking.go:15` → confirmé. `VÉRIFIÉ_CODE`.
-   - `IsAvailable(s Slot) bool` à `booking.go:20` → confirmé. `VÉRIFIÉ_CODE`.
-   - `Book(s Slot, n int) (Slot, error)` à `booking.go:36` → confirmé. `VÉRIFIÉ_CODE`.
-   - `Book` retourne par valeur (pas de mutation en place) → confirmé : `s.Booked += n; return s` (`booking.go:26-27`). `VÉRIFIÉ_CODE`.
+   - `Slot struct` à `booking.go:15-21` → confirmé (`type Slot struct {` ligne 15). `VÉRIFIÉ_CODE`.
+   - Champs `ID`, `Activity`, `Start time.Time`, `Capacity`, `Booked` → confirmés lignes 16-20. `VÉRIFIÉ_CODE`.
+   - `Remaining(s Slot) int` à `booking.go:24-26` → confirmé. `VÉRIFIÉ_CODE`.
+   - `IsAvailable(s Slot) bool` à `booking.go:29-31` → confirmé. `VÉRIFIÉ_CODE`.
+   - `Book(s Slot, n int) (Slot, error)` à `booking.go:36-45` → confirmé. `VÉRIFIÉ_CODE`.
+   - `Book` retourne par valeur (pas de mutation en place) → confirmé : `s.Booked += n; return s` (`booking.go:43-44`). `VÉRIFIÉ_CODE`.
 
 2. **Tests cités présents.**
    - `TestRemaining`, `TestIsAvailable`, `TestBook` → tous présents dans `booking_test.go`. `VÉRIFIÉ_CODE`.
