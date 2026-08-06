@@ -6,7 +6,7 @@
 - **Visibilité** : `technical` — aucun point d'entrée utilisateur ou HTTP ; exposé uniquement comme API de package Go
 - **Acteur principal** : code appelant (autre package Go)
 - **Acteurs** : appelant Go (seul acteur connu — pas de couche HTTP, pas d'utilisateur humain)
-- **Criticité** : Haute — cœur de la raison d'être du projet (réservation d'activités nautiques) ; absence de garde de capacité expose au risque de sur-réservation silencieuse
+- **Criticité** : Haute — cœur de la raison d'être du projet (réservation d'activités nautiques) ; `Book` protège contre la sur-réservation via `ErrCapacityExceeded` (`booking.go:40-42`)
 - **Confiance** : medium — fichiers lus intégralement (`VÉRIFIÉ_CODE`) ; tests lus mais non exécutés (toolchain Go absente, statut d'exécution `INCONNU`)
 - **Justification** : `Book` est entièrement visible dans `internal/booking/booking.go` (4 lignes). Type `technical_flow` retenu pour les mêmes raisons que `WORKFLOW_CONSULTER_DISPONIBILITE` : aucun point d'entrée HTTP, route ou interface utilisateur dans le code actuel.
 
