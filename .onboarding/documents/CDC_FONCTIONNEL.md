@@ -33,8 +33,8 @@ Le code implémente deux workflows connexes. Ces workflows sont purement techniq
 4. L'appelant utilise le résultat pour décider si la réservation peut procéder.
 
 **Règles métier**
-- **Places restantes = Capacité − Réservées** : `Remaining(s)` retourne `s.Capacity - s.Booked` (`internal/booking/booking.go:16`).
-- **Disponible ssi Restantes > 0** : `IsAvailable(s)` retourne `Remaining(s) > 0` (`internal/booking/booking.go:21`).
+- **Places restantes = Capacité − Réservées** : `Remaining(s)` retourne `s.Capacity - s.Booked` (`internal/booking/booking.go:24-26`).
+- **Disponible ssi Restantes > 0** : `IsAvailable(s)` retourne `Remaining(s) > 0` (`internal/booking/booking.go:29-31`).
 
 **Données en entrée** : `Slot{ID, Activity, Start, Capacity, Booked}`.
 **Données en sortie** : `int` (nombre de places libres, potentiellement négatif si sur-réservation), `bool` (disponible oui/non).
@@ -75,8 +75,8 @@ Le code implémente deux workflows connexes. Ces workflows sont purement techniq
 
 | Règle | Preuve | Statut |
 |---|---|---|
-| Places libres = Capacité − Réservées | `Remaining` ligne 16 | ✓ Implémentée correctement |
-| Un créneau est disponible ssi places libres > 0 | `IsAvailable` ligne 21 | ✓ Implémentée correctement |
+| Places libres = Capacité − Réservées | `Remaining` ligne 24-26 | ✓ Implémentée correctement |
+| Un créneau est disponible ssi places libres > 0 | `IsAvailable` ligne 29-31 | ✓ Implémentée correctement |
 | On ne peut réserver que si disponible | `Book` lignes 36-45 | ✓ Implémentée — `ErrCapacityExceeded` si `n > Remaining(s)` |
 | Réservation enregistrée → places réservées augmentent | `Book` ligne 43 | ✓ Implémentée avec garde |
 | Annulation possible | Aucun mécanisme — `Book(s, -n)` est rejeté (`ErrInvalidBookingCount`) | ✗ **Absente** — fonction `Cancel` à créer |
