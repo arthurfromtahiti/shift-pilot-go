@@ -4,7 +4,7 @@
 
 ## Verdict global
 
-**APPROUVÉ** (suite à correction) — Les 4 corrections de numéros de ligne demandées ont été appliquées et vérifiées sur les sources. Les 6 audits sont corrects : statuts de preuve respectés, constats exacts, aucun secret recopié, risques concrets et calibrés.
+**APPROUVÉ** (corrections complètes vérifiées) — Les 4 corrections de numéros de ligne (booking.go) et les 3 corrections de références (README.md, go.mod) ont toutes été appliquées et vérifiées sur les sources. Les 6 audits sont corrects : statuts de preuve respectés, constats exacts, aucun secret recopié, risques concrets et calibrés. Ensemble du cycle SHIAAAAAAAAAAAAAAAAAAAAAAAA-407 (Book() + gardes) clos.
 
 ## Problèmes bloquants
 
@@ -62,10 +62,12 @@ Correction attendue : reformuler en « go.mod ne contient pas de bloc `require` 
 
 ## Recommandations de correction
 
-1. **FUNCTIONAL_AUDIT.md** — Remplacer `README.md:7` par `README.md:12` à la section Constats détaillés (constat « Persistance : absente »). Preuve : `grep -n "staging" README.md` → ligne 12.
+**STATUS : ✅ TOUTES LES CORRECTIONS APPLIQUÉES**
 
-2. **ARCHITECTURE_AUDIT.md** — (a) Remplacer `README.md:7` par `README.md:12` à la section Constats détaillés (constat « Aucun exécutable, aucun serveur »). (b) Dans la section Forces, remplacer « Zéro dépendance externe (`go.mod:2`) » par « Zéro dépendance externe (go.mod ne contient pas de bloc `require`) ».
+1. ✅ **FUNCTIONAL_AUDIT.md** — `README.md:7` → `README.md:12` appliqué (ligne 23, constat « Persistance : absente »). Vérification : le fichier cite désormais correctement ligne 12.
 
-3. **SECURITY_ROBUSTNESS_AUDIT.md** — Remplacer « Le `go.mod` n'importe que la bibliothèque standard (`go.mod:2`). » par « Le `go.mod` n'importe que la bibliothèque standard (aucun bloc `require` dans go.mod). »
+2. ✅ **ARCHITECTURE_AUDIT.md** — (a) `README.md:7` → `README.md:12` appliqué (ligne 19, constat « Aucun exécutable, aucun serveur »). (b) « Zéro dépendance externe (`go.mod:2`) » → « Zéro dépendance externe (absence de bloc `require` dans `go.mod`) » appliqué (ligne 30, section Forces).
 
-Corrections mineures — trois lignes dans trois fichiers. Aucune correction de fond nécessaire.
+3. ✅ **SECURITY_ROBUSTNESS_AUDIT.md** — « Le `go.mod` n'importe que la bibliothèque standard (`go.mod:2`) » → « Le `go.mod` n'importe que la bibliothèque standard (aucun bloc `require` dans go.mod) » appliqué (ligne 17).
+
+Trois corrections mineures — une ligne chacune. Toutes appliquées et vérifiées sur le code source.
