@@ -37,9 +37,9 @@ Correction attendue : reformuler en « go.mod ne contient pas de bloc `require` 
 **Statuts de preuve** — Le passage au vocabulaire à quatre statuts (socle-agence §1) est appliqué correctement dans les six audits : `VÉRIFIÉ_CODE`, `HYPOTHÈSE`, `INCONNU` sont utilisés. `OBSERVÉ` est absent : c'est juste — aucun système n'a été exécuté, aucune base n'a été lue.
 
 **Constats factuels vérifiés dans le code :**
-- `Remaining` retourne `s.Capacity - s.Booked` à `booking.go:16` — VÉRIFIÉ_CODE (ligne 16 confirmée).
-- `IsAvailable` retourne `Remaining(s) > 0` à `booking.go:21` — VÉRIFIÉ_CODE (ligne 21 confirmée).
-- `Book` incrémente `s.Booked += n` sans garde à `booking.go:26` — VÉRIFIÉ_CODE (ligne 26 confirmée).
+- `Remaining` retourne `s.Capacity - s.Booked` à `booking.go:25` — VÉRIFIÉ_CODE (ligne 25 confirmée).
+- `IsAvailable` retourne `Remaining(s) > 0` à `booking.go:30` — VÉRIFIÉ_CODE (ligne 30 confirmée).
+- `Book` valide ses pré-conditions (`n > 0`, `n ≤ Remaining(s)`) et incrémente `s.Booked += n` à `booking.go:43-44` — `ErrInvalidBookingCount` si `n ≤ 0` (lignes 37-38), `ErrCapacityExceeded` si `n > Remaining(s)` (lignes 40-41) — VÉRIFIÉ_CODE.
 - Struct `Slot` à `booking.go:15-21`, cinq champs exacts — VÉRIFIÉ_CODE (confirmé).
 - `go.mod` déclare `github.com/arthurfromtahiti/shift-pilot-go`, Go 1.21, sans bloc `require` — fait correct malgré la citation de ligne incorrecte.
 - `booking_test.go:9` : `Start: time.Now()` dans `sample()` — VÉRIFIÉ_CODE (confirmé).
@@ -48,9 +48,9 @@ Correction attendue : reformuler en « go.mod ne contient pas de bloc `require` 
 
 **Fichiers cités existent tous** — `internal/booking/booking.go`, `internal/booking/booking_test.go`, `go.mod`, `README.md` : tous présents et ouverts. Aucun fichier introuvable.
 
-**Risques concrets** — Chaque risque porte un scénario précis : `Book(Slot{Capacity:10, Booked:10}, 1)` → `Slot{Booked:11}` sans erreur (VÉRIFIÉ_CODE); race condition TOCTOU sur `IsAvailable → Book` sans verrou dans un futur serveur HTTP (HYPOTHÈSE). Pas de risque générique non relié au code.
+**Risques concrets** — Chaque risque porte un scénario précis : `Book(Slot{Capacity:10, Booked:10}, 1)` → `(Slot{}, ErrCapacityExceeded)` (VÉRIFIÉ_CODE — garde `n > Remaining(s)` à `booking.go:40-41`); race condition TOCTOU sur `IsAvailable → Book` sans verrou dans un futur serveur HTTP (HYPOTHÈSE). Pas de risque générique non relié au code.
 
-**Gravité vs certitude distinguées** — Le défaut `Book` sans garde est correctement calibré : présent comme `VÉRIFIÉ_CODE (impact direct, prouvé)` mais qualifié immédiatement « risque théorique dans l'état actuel ». Les scénarios futurs (HTTP, persistance) sont tous en `HYPOTHÈSE`. Aucun surcalibrage.
+**Gravité vs certitude distinguées** — Les gardes de `Book` sont correctement représentées dans les audits : présentes comme `VÉRIFIÉ_CODE`. Les scénarios futurs (HTTP, persistance) sans mutexes sont correctement calibrés en `HYPOTHÈSE`. Aucun surcalibrage.
 
 **Recommandations actionnables** — Chaque recommandation cite le fichier et la ligne à modifier. Elles sont faisables sur ce corpus.
 
