@@ -42,8 +42,10 @@ germe.
 - **Routes / points d'entrée** : *aucune* — pas de serveur ni de handler. Le
   domaine n'est exposé que comme API de package Go : `Remaining(Slot) int`
   (`booking.go:15`), `IsAvailable(Slot) bool` (`booking.go:20`),
-  `Book(Slot, int) Slot` (`booking.go:25`). À noter : `Book` retourne un
-  `Slot` **par valeur** (pas de mutation en place, pas de garde de capacité).
+  `Book(Slot, int) (Slot, error)` (`booking.go:36`). À noter : `Book` retourne
+  un `Slot` **par valeur** et une `error`, avec deux gardes :
+  `ErrInvalidBookingCount` si n ≤ 0, `ErrCapacityExceeded` si n dépasse
+  les places restantes.
 - **Indices de rattachement** : package `internal/booking`, type `Slot`,
   identifiants `Capacity`/`Booked`/`Remaining`/`IsAvailable`/`Book`, terme
   `Activity`. Ne matche que `internal/booking/*.go`.
